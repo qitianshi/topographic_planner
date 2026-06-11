@@ -38,6 +38,8 @@ typedef float phys_dist_t;
 
 /* Map of the terrain to navigate containing multiple data layers. */
 struct terrain_map_t {
+    
+    // Metadata
     uint32_t npoints_x;         // Number of data points along x-axis
     uint32_t npoints_y;         // Number of data points along y-axis
     phys_dist_t resolution;     // Physical distance (e.g., meters) per point

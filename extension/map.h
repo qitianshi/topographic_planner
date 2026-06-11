@@ -34,21 +34,20 @@
  */
 
 
-/* Denotes that this value represents a physical distance. */
+/* Denotes that this value represents a physical distance */
 typedef float phys_dist_t;
 
-/* Map of the terrain to navigate containing multiple data layers. */
+/* Map of the terrain to navigate, containing multiple data layers */
 struct terrain_map_t {
-    
+
     // Metadata
     uint32_t npoints_x;         // Number of data points along x-axis
     uint32_t npoints_y;         // Number of data points along y-axis
     phys_dist_t resolution;     // Physical distance (e.g., meters) per point
 
-    // Data arrays have length (npoints_x * npoints_y).
-
+    // Data arrays
+    // All array lengths are (npoints_x * npoints_y).
     phys_dist_t *data_elevation;    // Height along z-axis
-
     uint8_t *data_cost;             // General cost
 };
 
@@ -58,7 +57,7 @@ struct point_2d_t {
     phys_dist_t y;
 };
 
-/* A path along the terrain. */
+/* A path along the terrain */
 struct terrain_path_t {
     uint32_t npoints;
     struct point_2d_t *waypoints;

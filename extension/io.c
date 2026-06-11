@@ -8,7 +8,7 @@
 
 #define MAX_LABEL_LEN 32
 
-#define CONFIG_LINE_FORMAT "%32[^=]=%s"
+#define CONFIG_LINE_FORMAT "%31[^=]=%s"
 
 // Sets the metadata of the struct from the config file
 static enum io_error_t load_map_meta(

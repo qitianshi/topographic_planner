@@ -21,18 +21,18 @@ static enum io_error_t load_map_meta(
     }
 
     char curr_line[MAX_LINE_LEN];
-    char *config_type;
+    char config_type[MAX_LINE_LEN];
     char *value;
 
     // Check the section of each line up to the '=' character, and then
     // set the appropriate values
     while (fgets(curr_line, MAX_LINE_LEN, meta_path_file) != NULL) {
-        if (sscanf(curr_line, FORMAT, &config_type, &value) == 2) {
-            if (strcmp(value, "NPOINTS_X") == 0) {
+        if (sscanf(curr_line, FORMAT, config_type, &value) == 2) {
+            if (strcmp(config_type, "NPOINTS_X") == 0) {
                 out->npoints_x = atoi(value);
-            } else if (strcmp(value, "NPOINTS_Y") == 0) {
+            } else if (strcmp(config_type, "NPOINTS_Y") == 0) {
                 out->npoints_y = atoi(value);
-            } else if (strcmp(value, "RESOLUTION") == 0) {
+            } else if (strcmp(config_type, "RESOLUTION") == 0) {
                 out->resolution = atof(value);
             } else {
                 // Invalid line detected
@@ -81,7 +81,7 @@ static enum io_error_t load_map_data(
 
     // Check the validity of each line of data and set the appropriate values
     while (
-        fscanf(data_path_file, "%f,%f,%f,%x", &x, &y, &elevation, &cost) != EOF
+        fscanf(data_path_file, "%f,%f,%f,%c", &x, &y, &elevation, &cost) != EOF
     ) {
         // Check x and y values are valid
         if (

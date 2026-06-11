@@ -47,3 +47,19 @@ enum io_error_t load_map(
     char *data_path,
     struct terrain_map_t *out
 );
+
+/**
+ * Stores a terrain path to an output file.
+ *
+ * Example `path.csv` output file:
+ *
+ * ```
+ * x,y
+ * 0.1,0.2
+ * 0.3,0.4
+ * ```
+ */
+enum io_error_t store_path(
+    char *out_path,
+    struct terrain_path_t *path
+);

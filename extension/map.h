@@ -61,3 +61,14 @@ struct terrain_path_t {
     uint32_t npoints;
     struct point_2d_t *waypoints;
 };
+
+
+// Functions
+
+struct terrain_map_t *terrain_map_make();
+
+void terrain_map_free(struct terrain_map_t *map);
+
+struct terrain_path_t *terrain_path_make();
+
+void terrain_path_free(struct terrain_path_t);

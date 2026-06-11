@@ -6,7 +6,9 @@
 
 #define MAX_LINE_LEN 64
 
-#define FORMAT "%32[^=]=%s"
+#define MAX_LABEL_LEN 32
+
+#define CONFIG_LINE_FORMAT "%32[^=]=%s"
 
 // Sets the metadata of the struct from the config file
 static enum io_error_t load_map_meta(
@@ -21,13 +23,13 @@ static enum io_error_t load_map_meta(
     }
 
     char curr_line[MAX_LINE_LEN];
-    char config_type[MAX_LINE_LEN];
+    char config_type[MAX_LABEL_LEN];
     char *value;
 
     // Check the section of each line up to the '=' character, and then
     // set the appropriate values
     while (fgets(curr_line, MAX_LINE_LEN, meta_path_file) != NULL) {
-        if (sscanf(curr_line, FORMAT, config_type, &value) == 2) {
+        if (sscanf(curr_line, CONFIG_LINE_FORMAT, config_type, &value) == 2) {
             if (strcmp(config_type, "NPOINTS_X") == 0) {
                 out->npoints_x = atoi(value);
             } else if (strcmp(config_type, "NPOINTS_Y") == 0) {

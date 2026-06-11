@@ -12,13 +12,12 @@ enum io_error_t {
 /**
  * Loads the map from a config file and a data file.
  *
- * Example `mapdata.csv` file:
+ * Example `map.config` file:
  *
  * ```
- * x,y,elevation,cost
- * 0,0,1.0,255
- * 0,1,1.5,250
- * 0,2,1.2,0
+ * NPOINTS_X=5000
+ * NPOINTS_Y=10000
+ * RESOLUTION=1.0
  * ```
  *
  * Example `mapdata.csv` file:

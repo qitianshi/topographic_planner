@@ -6,9 +6,11 @@
 
 #define MAX_LINE_LEN 64
 
+#define FORMAT "%32[^=]=%s"
+
 // Sets the metadata of the struct from the config file
 static enum io_error_t load_map_meta(
-    char *meta_path,                // The file to read from
+    const char *meta_path,                // The file to read from
     struct terrain_map_t *out       // The struct to edit
 ) {
     // Open file for read and check it was successful
@@ -18,11 +20,6 @@ static enum io_error_t load_map_meta(
         return ERR_FILE;
     }
 
-    // Initialise variables for sscanf later
-    uint32_t npoints_x = 0;
-    uint32_t npoints_y = 0;
-    phys_dist_t resolution = 0;
-
     char curr_line[MAX_LINE_LEN];
     char *config_type;
     char *value;
@@ -30,13 +27,13 @@ static enum io_error_t load_map_meta(
     // Check the section of each line up to the '=' character, and then
     // set the appropriate values
     while (fgets(curr_line, MAX_LINE_LEN, meta_path_file) != NULL) {
-        if (sscanf(curr_line, "%[^=]=%s", &config_type, &value) == 2) {
+        if (sscanf(curr_line, FORMAT, &config_type, &value) == 2) {
             if (strcmp(value, "NPOINTS_X") == 0) {
-                npoints_x = atoi(value);
+                out->npoints_x = atoi(value);
             } else if (strcmp(value, "NPOINTS_Y") == 0) {
-                npoints_y = atoi(value);
+                out->npoints_y = atoi(value);
             } else if (strcmp(value, "RESOLUTION") == 0) {
-                resolution = atof(value);
+                out->resolution = atof(value);
             } else {
                 // Invalid line detected
                 return ERR_MALFORMED;
@@ -58,7 +55,7 @@ static enum io_error_t load_map_meta(
 
 // Sets the data of the file from the csv file
 static enum io_error_t load_map_data(
-    char *data_path,                // The file to read from
+    const char *data_path,                // The file to read from
     struct terrain_map_t *out       // The struct to edit
 ) {
     // Open file for read and check it was successful
@@ -84,7 +81,7 @@ static enum io_error_t load_map_data(
 
     // Check the validity of each line of data and set the appropriate values
     while (
-        fscanf(data_path_file, "%d,%d,%f,%d", &x, &y, &elevation, &cost) != EOF
+        fscanf(data_path_file, "%f,%f,%f,%x", &x, &y, &elevation, &cost) != EOF
     ) {
         // Check x and y values are valid
         if (
@@ -128,8 +125,8 @@ enum io_error_t load_map(
 
 // Store data from out into csv output file
 enum io_error_t store_path(
-    char *out_path,
-    struct terrain_path_t *path
+    const char *out_path,
+    const struct terrain_path_t *path
 ) {
     // Open file for write and check it was successful
     FILE *out_path_file = fopen(out_path, "w");
@@ -139,11 +136,11 @@ enum io_error_t store_path(
     }
 
     // Print header to csv file
-    fprintf(out_path, "x,y");
+    fprintf(out_path_file, "x,y");
 
     // Print all x and y values in path to output file
     for (int i = 0; i < path->npoints; i++) {
-        fprintf(out_path, "%f,%f\n", path->waypoints->x, path->waypoints->y);
+        fprintf(out_path_file, "%f,%f\n", path->waypoints->x, path->waypoints->y);
     }
 
     // Close file and check it was successful

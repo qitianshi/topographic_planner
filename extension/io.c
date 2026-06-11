@@ -79,6 +79,9 @@ static enum io_error_t load_map_data(
 
     int index = 0;
 
+    // Skip first line of csv file
+    fscanf(data_path_file, "%*1[\n]");
+
     // Check the validity of each line of data and set the appropriate values
     while (
         fscanf(data_path_file, "%d,%d,%f,%d", &x, &y, &elevation, &cost) != EOF

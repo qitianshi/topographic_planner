@@ -32,11 +32,11 @@ static enum io_error_t load_map_meta(
     while (fgets(curr_line, MAX_META_LINE_LEN, meta_file) != NULL) {
         if (sscanf(curr_line, CONFIG_LINE_FORMAT, label, &value) == 2) {
             if (strcmp(label, "NPOINTS_X") == 0) {
-                out->npoints_x = atoi(value);
+                out->npoints_x = (int)strtol(value, NULL, 10);
             } else if (strcmp(label, "NPOINTS_Y") == 0) {
-                out->npoints_y = atoi(value);
+                out->npoints_y = (int)strtol(value, NULL, 10);
             } else if (strcmp(label, "RESOLUTION") == 0) {
-                out->resolution = atof(value);
+                out->resolution = strtof(value, NULL);
             } else {
                 // Invalid line detected
                 return ERR_MALFORMED;
@@ -97,7 +97,7 @@ static enum io_error_t load_map_data(
         }
 
         // Update values
-        if (y == out->npoints_y - 1) {
+        if (y >= out->npoints_y - 1) {
             x_next++;
             y_next = 0;
         } else {

@@ -11,10 +11,10 @@ static enum io_error_t load_map_meta(
     char *meta_path,                // The file to read from
     struct terrain_map_t *out       // The struct to edit
 ) {
-    // Open file and check it was successful
+    // Open file for read and check it was successful
     FILE *meta_path_file = fopen(meta_path, "r");
     if (meta_path_file == NULL) {
-        // Faiedl to open file
+        // Failed to open file
         return ERR_FILE;
     }
 
@@ -61,7 +61,7 @@ static enum io_error_t load_map_data(
     char *data_path,                // The file to read from
     struct terrain_map_t *out       // The struct to edit
 ) {
-    // Open file and check it was successful
+    // Open file for read and check it was successful
     FILE *data_path_file = fopen(data_path, "r");
     if (data_path_file == NULL) {
         // Failed to open file
@@ -79,7 +79,7 @@ static enum io_error_t load_map_data(
 
     int index = 0;
 
-    // Skip first line of csv file
+    // Skip header of csv file
     fscanf(data_path_file, "%*1[\n]");
 
     // Check the validity of each line of data and set the appropriate values
@@ -113,6 +113,7 @@ static enum io_error_t load_map_data(
     return ERR_OK;
 }
 
+// Load data from input files to out
 enum io_error_t load_map(
     char *meta_path,
     char *data_path,
@@ -121,6 +122,35 @@ enum io_error_t load_map(
     // Must set metadata values of out before data values
     load_meta_path(meta_path, out);
     load_data_path(data_path, out);
+
+    return ERR_OK;
+}
+
+// Store data from out into csv output file
+enum io_error_t store_path(
+    char *out_path,
+    struct terrain_path_t *path
+) {
+    // Open file for write and check it was successful
+    FILE *out_path_file = fopen(out_path, "w");
+    if (out_path_file == NULL) {
+        // Failed to open file
+        return ERR_FILE;
+    }
+
+    // Print header to csv file
+    fprintf(out_path, "x,y");
+
+    // Print all x and y values in path to output file
+    for (int i = 0; i < path->npoints; i++) {
+        fprintf(out_path, "%f,%f\n", path->waypoints->x, path->waypoints->y);
+    }
+
+    // Close file and check it was successful
+    if (fclose(out_path_file) != 0) {
+        // Failed to close file
+        return ERR_FILE;
+    }
 
     return ERR_OK;
 }

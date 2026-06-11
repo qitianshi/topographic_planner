@@ -5,10 +5,9 @@
 #include "map.h"
 
 #define MAX_LINE_LEN 64
-
 #define MAX_LABEL_LEN 32
-
-#define CONFIG_LINE_FORMAT "%31[^=]=%s"
+#define MAX_VALUE_LEN ((MAX_LINE_LEN) - (MAX_LABEL_LEN) - 1)
+#define CONFIG_LINE_FORMAT "%31[^=]=%31s"
 
 // Sets the metadata of the struct from the config file
 static enum io_error_t load_map_meta(
@@ -24,7 +23,7 @@ static enum io_error_t load_map_meta(
 
     char curr_line[MAX_LINE_LEN];
     char config_type[MAX_LABEL_LEN];
-    char *value;
+    char value[MAX_VALUE_LEN];
 
     // Check the section of each line up to the '=' character, and then
     // set the appropriate values

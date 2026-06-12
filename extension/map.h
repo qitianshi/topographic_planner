@@ -51,16 +51,10 @@ struct terrain_map_t {
     uint8_t *data_cost;             // General cost
 };
 
-/* A 2D point */
+/* A 2D point, used to represent paths (as waypoints) */
 struct point_2d_t {
     phys_dist_t x;
     phys_dist_t y;
-};
-
-/* A path along the terrain */
-struct terrain_path_t {
-    uint32_t npoints;
-    struct point_2d_t *waypoints;
 };
 
 
@@ -69,7 +63,3 @@ struct terrain_path_t {
 struct terrain_map_t *terrain_map_make();
 
 void terrain_map_free(struct terrain_map_t *map);
-
-struct terrain_path_t *terrain_path_make();
-
-void terrain_path_free(struct terrain_path_t);

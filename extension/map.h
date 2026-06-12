@@ -1,5 +1,9 @@
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+
+#include "adt/dynarr.h"
+
 
 /**
  * COORDINATE SYSTEM
@@ -60,6 +64,12 @@ struct point_2d_t {
 
 // Functions
 
-struct terrain_map_t *terrain_map_make();
+/**
+ * Allocates the data arrays for `terrain_map_t`
+ *
+ * The metadata fields must already be populated.
+ */
+bool terrain_map_alloc(struct terrain_map_t *map);
 
+/* Frees the data arrays for `terrain_map_t` */
 void terrain_map_free(struct terrain_map_t *map);

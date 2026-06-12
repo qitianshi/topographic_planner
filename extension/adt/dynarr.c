@@ -70,7 +70,7 @@ void *dynarr_get(const struct dynarr_t *arr, size_t index) {
     assert(arr);
     assert(arr->data);
 
-    if (index < 0 || index >= arr->length) {
+    if (index >= arr->length) {
         return NULL;
     }
 

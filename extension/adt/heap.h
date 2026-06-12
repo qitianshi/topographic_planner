@@ -18,16 +18,21 @@ struct heap_t {
 };
 
 /* Creates a new heap */
-bool heap_make(struct heap_t *heap, size_t initial_capacity, size_t elem_size);
-
-/* Returns the length (number of elements) of the heap */
-size_t heap_length(struct heap_t *heap, size_t elem_size);
+bool heap_make(
+    struct heap_t *heap,
+    size_t initial_capacity,
+    size_t elem_size,
+    comp_func_t comp_func
+);
 
 /* Inserts an element into the heap */
-bool heap_insert(struct heap_t *heap, const void *data, size_t elem_size);
+bool heap_insert(struct heap_t *heap, const void *data);
 
 /* Gets the root (maximal) element of the heap */
-void *heap_get_root(const struct heap_t *heap, size_t elem_size);
+void *heap_get_root(const struct heap_t *heap);
+
+/* Removes the root (maximal) element of the heap */
+void heap_pop_root(struct heap_t *heap);
 
 /* Clears all elements from the heap */
 void heap_clear(struct heap_t *heap);

@@ -8,8 +8,9 @@
 /* Dynamically resizing array */
 struct dynarr_t {
     char *data;
-    size_t size;            // Number of bytes
-    size_t capacity;        // Number of bytes
+    size_t length;          // Number of elements
+    size_t capacity;        // Number of elements
+    size_t elem_size;       // Bytes per element
 };
 
 /* Creates a new dynarray */
@@ -19,17 +20,14 @@ bool dynarr_make(
     size_t elem_size
 );
 
-/* Returns the length (number of elements) of the array */
-size_t dynarr_length(struct dynarr_t *arr, size_t elem_size);
-
 /* Appends an element to end of the array */
-bool dynarr_append(struct dynarr_t *arr, const void *data, size_t elem_size);
+bool dynarr_append(struct dynarr_t *arr, const void *data);
 
-/* Pops the element at the end of the array */
-void dynarr_pop(struct dynarr_t *arr, size_t amount, size_t elem_size);
+/* Pops the `n_elems` elements from the end of the array */
+void dynarr_pop(struct dynarr_t *arr, size_t n_elems);
 
 /* Gets the element at an index in the array */
-void *dynarr_get(const struct dynarr_t *arr, size_t index, size_t elem_size);
+void *dynarr_get(const struct dynarr_t *arr, size_t index);
 
 /* Clears all elements from the array */
 void dynarr_clear(struct dynarr_t *arr);

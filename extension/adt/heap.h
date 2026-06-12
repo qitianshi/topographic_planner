@@ -13,7 +13,7 @@ typedef int (*comp_func_t)(const void *, const void *);
  * a maxheap. For a minheap, negate the result of `comp_func`.
  */
 struct heap_t {
-    struct dynarr_t *arr;
+    struct dynarr_t arr;
     comp_func_t comp_func;
 };
 

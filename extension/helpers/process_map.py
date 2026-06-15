@@ -26,6 +26,7 @@ import pandas as pd
 
 
 MAX_CELL_COST = 255
+LETHAL_THRESHOLD = 0.3
 SUMMARY_PRINT_WIDTH = 80
 
 
@@ -117,15 +118,12 @@ def process_terrain(
         # Edge case: all zeroes
         max_range = min_range = max_elev = min_elev = avg_elev = 0.0
 
-    # Calculates costs
-    if max_range == min_range:
-        # Edge case: perfectly flat map
-        costs = np.where(nan_mask, MAX_CELL_COST, 0)
-    else:
-        normalized = (df['z_range'] / max_range) * MAX_CELL_COST
-        # Replace NaN with MAX_CELL_COST
-        costs = np.where(nan_mask, MAX_CELL_COST, normalized)
-        costs = np.round(costs).clip(0, 255).astype(int)
+    # Calculates costs with threshold clipping
+    # Linearly map 0 -> LETHAL_THRESHOLD to 0 -> MAX_CELL_COST
+    # Replace NaN with MAX_CELL_COST
+    normalized = (df['z_range'] / LETHAL_THRESHOLD) * MAX_CELL_COST
+    costs = np.where(nan_mask, MAX_CELL_COST, normalized)
+    costs = np.round(costs).clip(0, MAX_CELL_COST).astype(int)
 
     df['cost'] = costs
 
@@ -183,8 +181,8 @@ def print_summary(stats: dict[str, float]) -> None:
     print(f"Min Elevation       : {stats['min_elev']:.4f} m")
     print(f"Average Elevation   : {stats['avg_elev']:.4f} m")
     print("-" * SUMMARY_PRINT_WIDTH)
-    print(f"Max Z-Range (Raw)   : {stats['max_range']:.4f} m -> Mapped to Cost 255")
-    print(f"Min Z-Range (Raw)   : {stats['min_range']:.4f} m -> Mapped to Cost 0")
+    print(f"Max Z-Range (Raw)   : {stats['max_range']:.4f} m")
+    print(f"Min Z-Range (Raw)   : {stats['min_range']:.4f} m")
     print("=" * SUMMARY_PRINT_WIDTH + "\n")
 
 

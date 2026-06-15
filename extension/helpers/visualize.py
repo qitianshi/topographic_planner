@@ -16,6 +16,10 @@ import plotly.graph_objects as go
 from scipy.interpolate import griddata
 
 
+MAX_CELL_COST = 255
+LETHAL_THRESHOLD = 0.3
+
+
 class InputHeaders(StrEnum):
     """Headers for the input CSV"""
     X = "X"
@@ -110,20 +114,26 @@ def create_interactive_view(
         name='True Color'
     ))
 
-    # Z-Range trace
+    # Z-Range / Cost trace
     z_grid = \
         df.pivot_table(index='y_val', columns='x_val', values='z_val').values
     z_range_grid = \
         df.pivot_table(index='y_val', columns='x_val', values='z_range').values
+
+    # Apply the same linear mapping and clipping as the processing script
+    cost_grid = np.clip((z_range_grid / LETHAL_THRESHOLD) * MAX_CELL_COST, 0, MAX_CELL_COST)
+
     fig.add_trace(go.Surface(
         x=sorted_x,
         y=sorted_y,
         z=z_grid,
-        surfacecolor=z_range_grid,
+        surfacecolor=cost_grid,                                   # type: ignore
+        cmin=0,                  # Lock the color scale minimum
+        cmax=MAX_CELL_COST,      # Lock the color scale maximum
         colorscale='RdBu_r',
-        colorbar={"title": 'Z Range'},
+        colorbar={"title": 'Cost (0-255)'},
         visible=False,
-        name='Z-Range'
+        name='Cost Map'
     ))
 
     # UI Toggle Buttons
@@ -146,11 +156,11 @@ def create_interactive_view(
                     ]
                 },
                 {
-                    "label": "Z-Range View",
+                    "label": "Cost Map View",
                     "method": "update",
                     "args": [
                         {"visible": [False, True]},
-                        {"title": "Terrain: Z-Range Palette"}
+                        {"title": "Terrain: Cost Palette"}
                     ]
                 }
             ]

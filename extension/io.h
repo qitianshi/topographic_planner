@@ -59,7 +59,4 @@ enum io_error_t load_map(
  * 0.3,0.4
  * ```
  */
-enum io_error_t store_path(
-    const char *out_path,
-    const struct terrain_path_t *path
-);
+enum io_error_t store_path(const char *out_path, const struct dynarr_t *path);

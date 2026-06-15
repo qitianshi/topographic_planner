@@ -129,10 +129,8 @@ enum io_error_t load_map(
 }
 
 // Store data from out into csv output file
-enum io_error_t store_path(
-    const char *out_path,
-    const struct terrain_path_t *path
-) {
+enum io_error_t store_path(const char *out_path, const struct dynarr_t *path) {
+
     FILE *out_file = fopen(out_path, "w");
     if (out_file == NULL) {
         return ERR_FILE;
@@ -142,8 +140,9 @@ enum io_error_t store_path(
     fprintf(out_file, "x,y");
 
     // Print all x and y values in path to output file
-    for (int i = 0; i < path->npoints; i++) {
-        fprintf(out_file, "%f,%f\n", path->waypoints->x, path->waypoints->y);
+    for (int i = 0; i < path->length; i++) {
+        struct point_2d_t *point = dynarr_get(path, i);
+        fprintf(out_file, "%f,%f\n", point->x, point->y);
     }
 
     if (fclose(out_file) != 0) {

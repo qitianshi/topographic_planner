@@ -117,8 +117,8 @@ static enum io_error_t load_map_data(
 
 // Load data from input files to out
 enum io_error_t load_map(
-    char *meta_path,
-    char *data_path,
+    const char *meta_path,
+    const char *data_path,
     struct terrain_map_t *out
 ) {
     // Must set metadata values of out before data values
@@ -153,7 +153,7 @@ enum io_error_t store_path(const char *out_path, const struct dynarr_t *path) {
 
     // Print all x and y values in path to output file
     for (int i = 0; i < path->length; i++) {
-        struct point_2d_t *point = dynarr_get(path, i);
+        const struct point_2d_t *point = dynarr_get(path, i);
         fprintf(out_file, "%f,%f\n", point->x, point->y);
     }
 

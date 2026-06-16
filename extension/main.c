@@ -15,16 +15,14 @@
 
 
 // Checks point is in correct format and updates struct values
-static bool parse_point(struct point_2d_t point, char *input) {
-    if (sscanf(
-        input, 
-        "(%f,%f)", 
-        point.x, 
-        point.y
-    ) != EXPECTED_POINT_INPUT_NUM) {
+static bool parse_point(struct point_2d_t *point, char *input) {
+    if (
+        sscanf(input, "(%f,%f)", &(point->x), &(point->y))
+        != EXPECTED_POINT_INPUT_NUM
+    ) {
         return EXIT_FAILURE;
     }
-    
+
     return EXIT_SUCCESS;
 }
 
@@ -36,12 +34,12 @@ int main(int argc, char **argv) {
     struct point_2d_t dest;
 
     // Set start and dest x and y values from input
-    if (!parse_point(start, argv[START_POINT_IDX])) {
+    if (!parse_point(&start, argv[START_POINT_IDX])) {
         fprintf(stderr, "Invalid format for start point input, expected (x,y)");
         return EXIT_FAILURE;
     }
 
-    if (!parse_point(dest, argv[DEST_POINT_IDX])) {
+    if (!parse_point(&dest, argv[DEST_POINT_IDX])) {
         fprintf(stderr, "Invalid format for dest point input, expected (x,y)");
         return EXIT_FAILURE;
     }
@@ -50,8 +48,8 @@ int main(int argc, char **argv) {
 
     // Read metadata and data from inputs and write to map
     enum io_error_t err = load_map(
-        argv[META_PATH_IDX], 
-        argv[DATA_PATH_IDX], 
+        argv[META_PATH_IDX],
+        argv[DATA_PATH_IDX],
         &map
     );
     if (err != ERR_OK) {
@@ -67,7 +65,7 @@ int main(int argc, char **argv) {
 
     // Write path to output file
     err = store_path(
-        argv[OUTPUT_PATH_IDX], 
+        argv[OUTPUT_PATH_IDX],
         &path
     );
     if (err != ERR_OK) {

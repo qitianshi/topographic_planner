@@ -6,6 +6,7 @@ enum io_error_t {
     ERR_FILE,           // System file I/O error
     ERR_MALFORMED,      // Malformed file (incorrect format)
     ERR_DIMENSION,      // Incorrect dimensions (for data load)
+    ERR_MEMORY          // Failed memory allocation
 };
 
 

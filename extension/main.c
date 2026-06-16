@@ -1,7 +1,9 @@
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "io.h"
 #include "map.h"
+#include "pathfinder.h"
 
 #define META_PATH_IDX 1
 #define DATA_PATH_IDX 2
@@ -13,7 +15,7 @@
 
 
 // Checks point is in correct format and updates struct values
-static int parse_point(struct point_2d_t point, char *input) {
+static bool parse_point(struct point_2d_t point, char *input) {
     if (sscanf(
         input, 
         "(%f,%f)", 
@@ -34,48 +36,46 @@ int main(int argc, char **argv) {
     struct point_2d_t dest;
 
     // Set start and dest x and y values from input
-    if (parse_point(start, argv[START_POINT_IDX]) != EXIT_SUCCESS) {
+    if (!parse_point(start, argv[START_POINT_IDX])) {
         fprintf(stderr, "Invalid format for start point input, expected (x,y)");
         return EXIT_FAILURE;
     }
 
-    if (parse_point(dest, argv[DEST_POINT_IDX]) != EXIT_SUCCESS) {
+    if (!parse_point(dest, argv[DEST_POINT_IDX])) {
         fprintf(stderr, "Invalid format for dest point input, expected (x,y)");
         return EXIT_FAILURE;
     }
 
-    struct terrain_map_t *out;
-    if (!terrain_map_alloc(out)) {
-        fprintf(stderr, "malloc for struct terrain_map_t *out failed");
-        return EXIT_FAILURE;
-    }
+    struct terrain_map_t map;
 
-    // Read metadata and data from inputs and write to out
+    // Read metadata and data from inputs and write to map
     enum io_error_t err = load_map(
         argv[META_PATH_IDX], 
         argv[DATA_PATH_IDX], 
-        out
+        &map
     );
     if (err != ERR_OK) {
         fprintf(stderr, "load_map exited with error %d", (int)err);
         return EXIT_FAILURE;
     }
 
-    const struct dynarr_t *path;
+    const struct dynarr_t path;
 
-    pathfinder();
+    if (!pathfinder(&map, &start, &dest, &path)) {
+        return EXIT_FAILURE;
+    }
 
     // Write path to output file
     err = store_path(
         argv[OUTPUT_PATH_IDX], 
-        path
+        &path
     );
     if (err != ERR_OK) {
         fprintf(stderr, "store_path exited with error %d", (int)err);
         return EXIT_FAILURE;
     }
 
-    terrain_map_free(out);
+    terrain_map_free(&map);
 
     return EXIT_SUCCESS;
 }

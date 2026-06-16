@@ -122,8 +122,20 @@ enum io_error_t load_map(
     struct terrain_map_t *out
 ) {
     // Must set metadata values of out before data values
-    load_meta_path(meta_path, out);
-    load_data_path(data_path, out);
+    enum io_error_t err = load_map_meta(meta_path, out);
+    if (err != ERR_OK) {
+        return err;
+    }
+
+    if (!terrain_map_alloc(out)) {
+        fprintf(stderr, "malloc for struct terrain_map_t *out failed");
+        return ERR_MEMORY;
+    }
+
+    err = load_map_data(data_path, out);
+    if (err != ERR_OK) {
+        return err;
+    }
 
     return ERR_OK;
 }

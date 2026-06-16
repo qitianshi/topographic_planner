@@ -2,7 +2,8 @@
 
 Options:
 1. True color view: Uses raw RGB values via Delaunay triangulation (Mesh3d).
-2. Z-Range view: Uses Z-range via a grid projection (Surface).
+2. Raw cost view: Uses pre-inflation calculated costs via a grid projection (Surface).
+3. Processed cost map view: Uses final processed costs via a grid projection (Surface).
 """
 
 
@@ -21,7 +22,7 @@ LETHAL_THRESHOLD = 0.3
 
 
 class InputHeaders(StrEnum):
-    """Headers for the input CSV"""
+    """Headers for the raw input CSV"""
     X = "X"
     Y = "Y"
     Z = "Z"
@@ -33,26 +34,23 @@ class InputHeaders(StrEnum):
     SF_Z_RANGE = "Z range (0.1)"
 
 
-def validate_paths() -> tuple[str, str]:
+def validate_paths() -> tuple[str, str, str]:
     """Validates the provided path arguments are valid."""
 
-    if len(sys.argv) != 3:
-        print("usage: python visualize_map.py <raw_in> <path_in>")
+    if len(sys.argv) != 4:
+        print("usage: python visualize_map.py <raw_in> <processed_in> <path_in>")
         sys.exit(1)
 
-    if not os.path.exists(sys.argv[1]):
-        print(f"{sys.argv[1]} does not exist")
-        sys.exit(1)
+    for i in range(1, 4):
+        if not os.path.exists(sys.argv[i]):
+            print(f"{sys.argv[i]} does not exist")
+            sys.exit(1)
 
-    if not os.path.exists(sys.argv[2]):
-        print(f"{sys.argv[2]} does not exist")
-        sys.exit(1)
-
-    return sys.argv[1], sys.argv[2]
+    return sys.argv[1], sys.argv[2], sys.argv[3]
 
 
-def load_cloud(in_path: str) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
-    """Reads the cloud input CSV and formats the color and grid data."""
+def load_raw_cloud(in_path: str) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
+    """Reads the cloud input CSV and formats the color, range, and spatial data."""
 
     df = pd.read_csv(
         in_path,
@@ -83,7 +81,7 @@ def load_cloud(in_path: str) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
         df[InputHeaders.B].astype(str) + ')'
     )
 
-    # Round to smooth out floating point imprecision for the grid
+    # Round to smooth out floating point imprecision for the grid boundaries
     df['x_val'] = df['x_val'].round(4)
     df['y_val'] = df['y_val'].round(4)
 
@@ -93,47 +91,73 @@ def load_cloud(in_path: str) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
     return df, sorted_x, sorted_y
 
 
+def load_processed_map(proc_path: str) -> pd.DataFrame:
+    """Reads the processed map CSV containing the calculated costs."""
+    return pd.read_csv(proc_path)
+
+
 def create_interactive_view(
-    df: pd.DataFrame,
+    raw_df: pd.DataFrame,
+    proc_df: pd.DataFrame,
     sorted_x: np.ndarray,
     sorted_y: np.ndarray
 ) -> go.Figure:
-    """Creates a single 3D figure with both views and UI toggle buttons."""
+    """Creates a single 3D figure with multiple views and UI toggle buttons."""
 
     fig = go.Figure()
 
-    # True colors (RGB). Uses Delaunay triangulation to reconstruct the mesh.
+    # Trace 0: True colors (RGB)
     fig.add_trace(go.Mesh3d(
-        x=df['x_val'],
-        y=df['y_val'],
-        z=df['z_val'],
-        vertexcolor=df['color'],
+        x=raw_df['x_val'],
+        y=raw_df['y_val'],
+        z=raw_df['z_val'],
+        vertexcolor=raw_df['color'],
         delaunayaxis='z',
         flatshading=True,
         visible=True,
         name='True Color'
     ))
 
-    # Z-Range / Cost trace
+    # Base grid computations
     z_grid = \
-        df.pivot_table(index='y_val', columns='x_val', values='z_val').values
+        raw_df.pivot_table(index='y_val', columns='x_val', values='z_val').values
+
+    # Recalculate raw cost grid manually
     z_range_grid = \
-        df.pivot_table(index='y_val', columns='x_val', values='z_range').values
+        raw_df.pivot_table(index='y_val', columns='x_val', values='z_range').values
+    raw_cost_grid = \
+        np.clip((z_range_grid / LETHAL_THRESHOLD) * MAX_CELL_COST, 0, MAX_CELL_COST)
 
-    # Apply the same linear mapping and clipping as the processing script
-    cost_grid = np.clip((z_range_grid / LETHAL_THRESHOLD) * MAX_CELL_COST, 0, MAX_CELL_COST)
+    # Read processed grid from file
+    processed_cost_grid = \
+        proc_df.pivot_table(index='y', columns='x', values='cost').values
 
+    # Trace 1: Raw Cost Map
     fig.add_trace(go.Surface(
         x=sorted_x,
         y=sorted_y,
         z=z_grid,
-        surfacecolor=cost_grid,                                   # type: ignore
-        cmin=0,                  # Lock the color scale minimum
-        cmax=MAX_CELL_COST,      # Lock the color scale maximum
+        surfacecolor=raw_cost_grid,                              # type: ignore
+        cmin=0,
+        cmax=MAX_CELL_COST,
         colorscale='RdBu_r',
         colorbar={"title": 'Cost (0-255)'},
         visible=False,
-        name='Cost Map'
+        name='Raw Cost'
+    ))
+
+    # Trace 2: Processed Cost Map
+    fig.add_trace(go.Surface(
+        x=sorted_x,
+        y=sorted_y,
+        z=z_grid,
+        surfacecolor=processed_cost_grid,                        # type: ignore
+        cmin=0,
+        cmax=MAX_CELL_COST,
+        colorscale='RdBu_r',
+        colorbar={"title": 'Cost (0-255)'},
+        visible=False,
+        name='Processed Cost'
     ))
 
     # UI Toggle Buttons
@@ -143,24 +167,34 @@ def create_interactive_view(
         updatemenus=[{
             "type": "buttons",
             "direction": "right",
-            "x": 0.0,
-            "y": 1.1,
+            "x": 0.5,
+            "xanchor": "center",
+            "y": 1.05,
+            "yanchor": "bottom",
             "showactive": True,
             "buttons": [
                 {
                     "label": "True Color View",
                     "method": "update",
                     "args": [
-                        {"visible": [True, False]},
+                        {"visible": [True, False, False]},
                         {"title": "Terrain: True Color RGB"}
                     ]
                 },
                 {
-                    "label": "Cost Map View",
+                    "label": "Raw Cost View",
                     "method": "update",
                     "args": [
-                        {"visible": [False, True]},
-                        {"title": "Terrain: Cost Palette"}
+                        {"visible": [False, True, False]},
+                        {"title": "Terrain: Raw Pre-inflation Cost"}
+                    ]
+                },
+                {
+                    "label": "Processed Cost Map View",
+                    "method": "update",
+                    "args": [
+                        {"visible": [False, False, True]},
+                        {"title": "Terrain: Processed Post-inflation Cost Map"}
                     ]
                 }
             ]
@@ -238,7 +272,7 @@ def add_path(
     )
     fig.add_trace(path_trace)
 
-    # Update UI Buttons so the path shows up in both views
+    # Update UI Buttons so the path shows up in all 3 views
     if fig.layout.updatemenus:
         menus = list(fig.layout.updatemenus)
         for button in menus[0].buttons:
@@ -249,10 +283,14 @@ def add_path(
 
 
 def main():
-    in_path, waypoints_path = validate_paths()
-    df, sorted_x, sorted_y = load_cloud(in_path)
-    fig = create_interactive_view(df, sorted_x, sorted_y)
-    fig = add_path(fig, df, waypoints_path)
+    raw_path, proc_path, waypoints_path = validate_paths()
+
+    raw_df, sorted_x, sorted_y = load_raw_cloud(raw_path)
+    proc_df = load_processed_map(proc_path)
+
+    fig = create_interactive_view(raw_df, proc_df, sorted_x, sorted_y)
+    fig = add_path(fig, raw_df, waypoints_path)
+
     fig.show()
 
 

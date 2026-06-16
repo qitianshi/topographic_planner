@@ -18,14 +18,18 @@ the `map.config` configuration file. Pass both files to the pathfinder.
 """
 
 
+from enum import StrEnum
 import os
 import sys
-from enum import StrEnum
+
 import numpy as np
 import pandas as pd
+from scipy import ndimage
 
 
 MAX_CELL_COST = 255
+INFLATION_RADIUS = 0.5
+DECAY_RATE = 5.0  # Lambda factor for the exponential decay buffer
 LETHAL_THRESHOLD = 0.3
 SUMMARY_PRINT_WIDTH = 80
 
@@ -92,6 +96,51 @@ def load_cloud(in_path: str) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
     return df, sorted_x, sorted_y
 
 
+def apply_costmap_inflation(
+    df: pd.DataFrame,
+    npoints_x: int,
+    npoints_y: int,
+    resolution: float
+) -> np.ndarray:
+    """Applies mathematical morphology to dilate obstacles and decay costs.
+
+    For each high-cost point, first expand this same cost so it covers the
+    radius of the robot, then have it decay thereon.
+    """
+
+    # Project 1D dataframe costs into a 2D grid
+    grid = np.zeros((npoints_y, npoints_x), dtype=float)
+    grid[df['y_idx'], df['x_idx']] = df['cost']
+
+    # Inscribed Radius Dilation (max filter)
+    # Calculate footprint radius in grid cells
+    radius_cells = int(np.ceil(INFLATION_RADIUS / resolution))
+
+    # Circular structuring element (kernel)
+    y, x = np.ogrid[-radius_cells:radius_cells+1, -radius_cells:radius_cells+1]
+    kernel = x**2 + y**2 <= radius_cells**2
+
+    dilated_grid = ndimage.maximum_filter(grid, footprint=kernel)
+
+    # Inflation Radius Decay (Euclidean Distance Transform)
+    # Isolate the lethal obstacles in the newly dilated grid
+    lethal_mask = dilated_grid == MAX_CELL_COST
+
+    if np.any(lethal_mask):
+        distances = ndimage.distance_transform_edt(~lethal_mask) * resolution
+
+        # Exponential decay
+        decayed_costs = MAX_CELL_COST * np.exp(-DECAY_RATE * distances)
+    else:
+        # Edge case: No lethal obstacles exist on the map
+        decayed_costs = np.zeros_like(dilated_grid)
+
+    final_grid = np.maximum(dilated_grid, decayed_costs)
+
+    # Convert back to 1D
+    return final_grid[df['y_idx'], df['x_idx']]
+
+
 def process_terrain(
     df: pd.DataFrame,
     sorted_x: np.ndarray,
@@ -118,14 +167,25 @@ def process_terrain(
         # Edge case: all zeroes
         max_range = min_range = max_elev = min_elev = avg_elev = 0.0
 
-    # Calculates costs with threshold clipping
     # Linearly map 0 -> LETHAL_THRESHOLD to 0 -> MAX_CELL_COST
-    # Replace NaN with MAX_CELL_COST
     normalized = (df['z_range'] / LETHAL_THRESHOLD) * MAX_CELL_COST
-    costs = np.where(nan_mask, MAX_CELL_COST, normalized)
-    costs = np.round(costs).clip(0, MAX_CELL_COST).astype(int)
 
-    df['cost'] = costs
+    # Replace NaN with MAX_CELL_COST
+    costs = np.where(nan_mask, MAX_CELL_COST, normalized)
+    df['cost'] = np.round(costs).clip(0, MAX_CELL_COST).astype(int)
+
+    # Calculate the spatial resolution of the map
+    resolution = np.abs(sorted_x[-1] - sorted_x[0]) / (len(sorted_x) - 1)
+
+    df['cost'] = apply_costmap_inflation(
+        df=df,
+        npoints_x=len(sorted_x),
+        npoints_y=len(sorted_y),
+        resolution=resolution
+    )
+
+    # Final clamp to integer values
+    df['cost'] = np.round(df['cost']).clip(0, MAX_CELL_COST).astype(int)
 
     # Sort into row-major order
     df = df.sort_values(by=['y_idx', 'x_idx']).reset_index(drop=True)
@@ -139,7 +199,8 @@ def process_terrain(
         'min_range': min_range,
         'max_elev': max_elev,
         'min_elev': min_elev,
-        'avg_elev': avg_elev
+        'avg_elev': avg_elev,
+        'resolution': resolution
     }
 
     return df, stats
@@ -171,6 +232,7 @@ def print_summary(stats: dict[str, float]) -> None:
     print("DATA PROCESSING SUMMARY".center(SUMMARY_PRINT_WIDTH))
     print("=" * SUMMARY_PRINT_WIDTH)
     print(f"Total Points Parsed : {stats['total_count']}")
+    print(f"Map Resolution      : {stats['resolution']:.4f} m/cell")
     print(f"NPOINTS_X           : {stats['npoints_x']}")
     print(f"NPOINTS_Y           : {stats['npoints_y']}")
     print(f"Map Size Check      : {expected_total} (Expected == Total Points: {size_check_valid})")

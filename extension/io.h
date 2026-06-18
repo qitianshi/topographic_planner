@@ -28,7 +28,7 @@ extern enum io_error_t io_load_pathfinder_config(struct pf_config_t* config);
 /**
  * Loads the map from a config file and a data file.
  *
- * Example `map.config` file:
+ * Example `pathfinder.config` file:
  *
  * ```
  * NPOINTS_X=5000

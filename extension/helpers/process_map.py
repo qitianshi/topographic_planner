@@ -14,7 +14,7 @@ Procedure to generate input file:
 5. Export the resultant cloud as a CSV.
 
 This tool produces the `mapdata.csv` data file. Use the printed summary to make
-the `map.config` configuration file. Pass both files to the pathfinder.
+the `pathfinder.config` configuration file. Pass both files to the pathfinder.
 """
 
 

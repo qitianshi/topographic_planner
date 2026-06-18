@@ -8,7 +8,7 @@
 
 #define SMOOTH_STEPS 100
 
-bool smooth(
+void smooth(
     const struct terrain_map_t *map,
     const struct dynarr_t *path
 );

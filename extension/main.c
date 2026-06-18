@@ -4,6 +4,7 @@
 #include "io.h"
 #include "map.h"
 #include "pathfinder.h"
+#include "smooth.h"
 
 void report_error(enum io_error_t err){
     fprintf(stderr, "pathfinder exited with error %s (%d)\n", io_err_to_str(err), (int)err);
@@ -40,9 +41,12 @@ int main(int argc, char **argv) {
     const enum pf_result_t res = pathfinder(&map, &pf_config, &path);
     if (res == PF_RESULT_FOUND_PATH) {
         printf("pathfinder: %s\n", pf_result_to_str(res));
+        smooth(&map, &path);
         if ((err = io_store_path(&filepaths, &path)) != ERR_OK)
             report_error(err);
         dynarr_free(&path);
+    } else {
+        fprintf(stderr, "pathfinder: %s\n", pf_result_to_str(res));
     }
 
     terrain_map_free(&map);

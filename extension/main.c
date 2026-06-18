@@ -4,80 +4,47 @@
 #include "io.h"
 #include "map.h"
 #include "pathfinder.h"
-#include "smooth.h"
 
-#define META_PATH_IDX 1
-#define DATA_PATH_IDX 2
-#define OUTPUT_PATH_IDX 3
-#define START_POINT_IDX 4
-#define DEST_POINT_IDX 5
-
-#define EXPECTED_POINT_INPUT_NUM 2
-
-
-
-// Checks point is in correct format and updates struct values
-static bool parse_point(struct point_2d_t *point, char *input) {
-    if (
-        sscanf(input, "(%f,%f)", &(point->x), &(point->y))
-        != EXPECTED_POINT_INPUT_NUM
-    ) {
-        return false;
-    }
-
-    return true;
+void report_error(enum io_error_t err){
+    fprintf(stderr, "pathfinder exited with error %s (%d)\n", io_err_to_str(err), (int)err);
 }
 
 // argv[1]: meta path argv[2]: data path argv[3]: out path
 // argv[4]: start point (x,y) argv[5]: dest point (x,y)
 int main(int argc, char **argv) {
 
-    struct point_2d_t start;
-    struct point_2d_t dest;
-
-    // Set start and dest x and y values from input
-    if (!parse_point(&start, argv[START_POINT_IDX])) {
-        fprintf(stderr, "Invalid format for start point input, expected (x,y)");
-        return EXIT_FAILURE;
-    }
-
-    if (!parse_point(&dest, argv[DEST_POINT_IDX])) {
-        fprintf(stderr, "Invalid format for dest point input, expected (x,y)");
-        return EXIT_FAILURE;
-    }
-
+    struct pf_config_t pf_config;
     struct terrain_map_t map;
-
-    // Read metadata and data from inputs and write to map
-    enum io_error_t err = load_map(
-        argv[META_PATH_IDX],
-        argv[DATA_PATH_IDX],
-        &map
-    );
-    if (err != ERR_OK) {
-        fprintf(stderr, "load_map exited with error %d\n", (int)err);
-        return EXIT_FAILURE;
-    }
-
+    struct io_filepaths_t filepaths;
     struct dynarr_t path;
 
-    if (!pathfinder(&map, start, dest, &path)) {
+    enum io_error_t err;
+
+    if ((err = io_load_paths(&filepaths)) != ERR_OK){
+        report_error(err);
         return EXIT_FAILURE;
     }
 
-    smooth(&map,&path);
-
-    // Write path to output file
-    err = store_path(
-        argv[OUTPUT_PATH_IDX],
-        &path
-    );
-    if (err != ERR_OK) {
-        fprintf(stderr, "store_path exited with error %d\n", (int)err);
+    if ((err = io_load_pathfinder_config(&pf_config)) != ERR_OK) {
+        report_error(err);
+        io_free_paths(&filepaths);
         return EXIT_FAILURE;
+    }
+
+    if ((err = io_load_map(&filepaths, &map)) != ERR_OK) {
+        report_error(err);
+        io_free_paths(&filepaths);
+        return EXIT_FAILURE;
+    }
+
+    const enum pf_result_t res = pathfinder(&map, &pf_config, &path);
+    if (res == PF_RESULT_FOUND_PATH) {
+        printf("pathfinder: %s\n", pf_result_to_str(res));
+        if ((err = io_store_path(&filepaths, &path)) != ERR_OK)
+            report_error(err);
+        dynarr_free(&path);
     }
 
     terrain_map_free(&map);
-
     return EXIT_SUCCESS;
 }

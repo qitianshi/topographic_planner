@@ -1,8 +1,8 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
-
-
+#include <stdlib.h>
+#include <errno.h>
 #include "io.h"
 
 #define MAX_META_LINE_LEN 64
@@ -10,49 +10,193 @@
 #define MAX_META_VALUE_LEN ((MAX_META_LINE_LEN) - (MAX_META_LABEL_LEN) - 1)
 #define CONFIG_LINE_FORMAT "%31[^=]=%31s"
 #define EXPECTED_MATCHES 4
+#define EXPECTED_POINT_INPUT_NUM 2
+
+extern const char* io_err_to_str(enum io_error_t err){
+    const char* err_msg[] = {
+    [ERR_OK] = "ERR_OK: no errors" ,
+    [ERR_FILE] = "ERR_FILE: System file I/O error",
+    [ERR_MALFORMED] = "ERR_MALFORMED: Malformed file (incorrect format)",
+    [ERR_DIMENSION] = "ERR_DIMENSION: Incorrect dimensions (for data load)",
+    [ERR_NPOINTS] = "ERR_NPOINTS: Number of points loaded does not match the expected",
+    [ERR_MEMORY] = "ERR_MEMORY: Failed memory allocation",
+    [ERR_VAR_NOT_FOUND] = "ERR_VAR_NOT_FOUND: An environment variable was not found",
+    [ERR_VAR_FORMAT] = "ERR_VAR_FORMAT: invalid format for value",
+    [ERR_VAR_OUT_OF_RANGE] = "ERR_VAR_OUT_OF_RANGE: value for an environment variable was out of range"
+    };
+    if (err < ERR_OK || err > ERR_VAR_OUT_OF_RANGE)
+        return "Unknown Error";
+    return err_msg[err];
+}
+
+static enum io_error_t str_to_uint32(const char* s, uint32_t* val){
+    errno = 0;
+    unsigned long ulong_val;
+    char* end;
+    ulong_val = strtoul(s, &end, 10);
+    if (end == s)
+        return ERR_VAR_FORMAT;
+    else if (errno == ERANGE || ulong_val < 0 || ulong_val > UINT32_MAX)
+        return ERR_VAR_OUT_OF_RANGE;
+    else{
+        *val = (uint32_t)ulong_val;
+        return ERR_OK;
+    }
+}
+
+static enum io_error_t str_to_float(const char *s, float *val) {
+    errno = 0;
+    char* end;
+    *val = strtof(s, &end);
+    if (end == s)
+        return ERR_VAR_FORMAT;
+    else if (errno == ERANGE)
+        return ERR_VAR_OUT_OF_RANGE;
+    else
+        return ERR_OK;
+}
+
+
+// Checks point is in correct format and updates struct values
+static enum io_error_t str_to_point(const char *s, struct point_2d_t *point) {
+    if (sscanf(s, " (%f,%f)", &(point->x), &(point->y)) != EXPECTED_POINT_INPUT_NUM)
+        return ERR_VAR_FORMAT;
+    else
+        return ERR_OK;
+}
+
+
+static enum io_error_t getenv_uint32(const char* name, uint32_t* val){
+    char* valstr = getenv(name);
+    return valstr ? str_to_uint32(valstr, val) : ERR_VAR_NOT_FOUND;
+}
+
+static enum io_error_t getenv_float(const char* name, float* val){
+    char* valstr = getenv(name);
+    return valstr ? str_to_float(valstr, val) : ERR_VAR_NOT_FOUND;
+}
+
+static enum io_error_t getenv_point(const char *name, struct point_2d_t* point) {
+    char *valstr = getenv(name);
+    return valstr ? str_to_point(valstr, point) : ERR_VAR_NOT_FOUND;
+}
+
+static enum io_error_t getenv_str(const char* name, char** val){
+    char *valstr = getenv(name);
+    if (!valstr)
+        return ERR_VAR_NOT_FOUND;
+    *val = strdup(valstr);
+    return *val ? ERR_OK : ERR_MEMORY;
+}
 
 /**
  * Sets the metadata of the struct from the config file
  * @param meta_path The file to read from
  * @param out The struct to edit
  */
-static enum io_error_t load_map_meta(
-    const char *meta_path,
-    struct terrain_map_t *out
-) {
-    FILE *meta_file = fopen(meta_path, "r");
-    if (meta_file == NULL) {
-        return ERR_FILE;
+static enum io_error_t load_map_meta(struct terrain_map_t *map) {
+    enum io_error_t err;
+    if ((err = getenv_uint32("NPOINTS_X", &map->npoints_x)) != ERR_OK){
+        fputs("failed to retrieve environment variable NPOINTS_X\n", stderr);
+        return err;
     }
-
-    char curr_line[MAX_META_LINE_LEN];
-    char label[MAX_META_LABEL_LEN];
-    char value[MAX_META_VALUE_LEN];
-
-    // Check the section of each line up to the '=' character, and then
-    // set the appropriate values
-    while (fgets(curr_line, MAX_META_LINE_LEN, meta_file) != NULL) {
-        if (sscanf(curr_line, CONFIG_LINE_FORMAT, label, value) == 2) {
-            if (strcmp(label, "NPOINTS_X") == 0) {
-                out->npoints_x = (uint32_t)strtol(value, NULL, 10);
-            } else if (strcmp(label, "NPOINTS_Y") == 0) {
-                out->npoints_y = (uint32_t)strtol(value, NULL, 10);
-            } else if (strcmp(label, "RESOLUTION") == 0) {
-                out->resolution = strtof(value, NULL);
-            } else {
-                // Invalid line detected
-                return ERR_MALFORMED;
-            }
-        } else {
-            // Invalid line detected
-            return ERR_MALFORMED;
-        }
+    if ((err = getenv_uint32("NPOINTS_Y", &map->npoints_y)) != ERR_OK){
+        fputs("failed to retrieve environment variable NPOINTS_Y\n", stderr);
+        return err;
     }
-
-    if (fclose(meta_file) != 0) {
-        return ERR_FILE;
+    if ((err = getenv_float("RESOLUTION", &map->resolution)) != ERR_OK) {
+        fputs("failed to retrieve environment variable RESOLUTION\n", stderr);
+        return err;
     }
+    return ERR_OK;
+}
 
+extern enum io_error_t io_load_paths(struct io_filepaths_t* paths){
+    enum io_error_t err;
+    if((err = getenv_str("MAPDATA", &paths->mapdata) != ERR_OK)){
+        fputs("failed to retrieve environment variable MAPDATA\n", stderr);
+        return err;
+    }
+    if((err = getenv_str("PATHOUT", &paths->pathout) != ERR_OK)){
+        fputs("failed to retrieve environment variable PATHOUT\n", stderr);
+        free(paths->mapdata);
+        return err;
+    }
+    return ERR_OK;
+}
+
+extern void io_free_paths(struct io_filepaths_t* paths){
+    free(paths->mapdata);
+    free(paths->pathout);
+}
+
+static enum io_error_t load_start_dest(struct point_2d_t* start, struct point_2d_t* dest){
+    enum io_error_t err;
+    if ((err = getenv_point("START", start)) != ERR_OK) {
+        fputs("failed to retrieve environment variable START\n", stderr);
+        return err;
+    }
+    if ((err = getenv_point("DEST", dest)) != ERR_OK) {
+        fputs("failed to retrieve environment variable DEST\n", stderr);
+        return err;
+    }
+    return ERR_OK;
+}
+
+static enum io_error_t load_weights(struct pf_weights_t* weights){
+    enum io_error_t err;
+    if ((err = getenv_float("PF_WEIGHT_XY_DIST", &weights->wxy_dist)) != ERR_OK){
+        fputs("failed to retrieve environment variable PF_WEIGHT_XY_DIST\n", stderr);
+        return err;
+    }
+    if ((err = getenv_float("PF_WEIGHT_GRAD", &weights->wgrad)) != ERR_OK){
+        fputs("failed to retrieve environment variable PF_WEIGHT_GRAD\n", stderr);
+        return err;
+    }
+    if ((err = getenv_float("PF_WEIGHT_COST", &weights->wcost)) != ERR_OK){
+        fputs("failed to retrieve environment variable PF_WEIGHT_COST\n", stderr);
+        return err;
+    }
+    if ((err = getenv_float("PF_WEIGHT_HEURISTIC", &weights->wheuristic)) != ERR_OK){
+        fputs("failed to retrieve environment variable PF_WEIGHT_HEURISTIC\n", stderr);
+        return err;
+    }
+    if ((err = getenv_float("PF_MAX_GRADIENT", &weights->max_grad)) != ERR_OK){
+        fputs("failed to retrieve environment variable PF_MAX_GRADIENT\n", stderr);
+        return err;
+    }
+    return ERR_OK;
+}
+
+static void* load_extra_out_config(const char* name){
+    name = getenv(name);
+    if (!name)
+        return NULL;
+    if (!strcmp("NULL", name) || !strcmp("null", name))
+        return NULL;
+    if (!strcmp("stdout", name))
+        return stdout;
+    FILE* f = fopen(name, "w");
+    if (!f)
+        return NULL;
+    if (fputc('\n', f) == EOF)
+        return NULL;
+    fclose(f);
+    return strdup(name);
+}
+
+static void load_extra_out_configs(struct pf_extra_out_t* extra_out){
+    extra_out->path_eval = load_extra_out_config("PF_EVAL_PATH");
+    extra_out->search_display = load_extra_out_config("PF_DISPLAY_SEARCH");
+}
+
+extern enum io_error_t io_load_pathfinder_config(struct pf_config_t* config){
+    enum io_error_t err;
+    if ((err = load_start_dest(&config->start, &config->dest)) != ERR_OK)
+        return err;
+    if ((err = load_weights(&config->weights)) != ERR_OK)
+        return err;
+    load_extra_out_configs(&config->extra_out);
     return ERR_OK;
 }
 
@@ -83,6 +227,7 @@ static enum io_error_t load_map_data(
 
     // Skip header of csv file
     if (fscanf(data_file, "%*[^\n]\n") == EOF){
+        fclose(data_file);
         return ERR_FILE;
     }
 
@@ -92,6 +237,7 @@ static enum io_error_t load_map_data(
     ){
         if (matches != EXPECTED_MATCHES){
             fprintf(stderr, "%s: malformed input on line %d\n", __func__, index + 1);
+            fclose(data_file);
             return ERR_MALFORMED;
         }
         // Check x and y values are valid
@@ -101,6 +247,7 @@ static enum io_error_t load_map_data(
             x >= out->npoints_x ||
             y >= out->npoints_y
         ) {
+            fclose(data_file);
             return ERR_DIMENSION;
         }
 
@@ -115,61 +262,74 @@ static enum io_error_t load_map_data(
         out->data_cost[index] = cost;
         index++;
     }
+    enum io_error_t err = ERR_OK;
     if (y_next != out->npoints_y){
-        return ferror(data_file) ? ERR_FILE : ERR_NPOINTS;
+        err = feof(data_file) ? ERR_FILE : ERR_NPOINTS;
     }
     if (fclose(data_file) != 0) {
-        return ERR_FILE;
+        err = ERR_FILE;
     }
 
-    return ERR_OK;
+    return err;
 }
 
 // Load data from input files to out
-enum io_error_t load_map(
-    const char *meta_path,
-    const char *data_path,
-    struct terrain_map_t *out
+extern enum io_error_t io_load_map(
+    struct io_filepaths_t* paths,
+    struct terrain_map_t *map
 ) {
     // Must set metadata values of out before data values
-    enum io_error_t err = load_map_meta(meta_path, out);
-    if (err != ERR_OK) {
-        return err;
+    enum io_error_t err;
+    while (true){
+        if ((err = load_map_meta(map)) != ERR_OK)
+            break;
+        if (!terrain_map_alloc(map)){
+            fputs("malloc for struct terrain_map_t *out failed\n", stderr);
+            err = ERR_MEMORY;
+            break;
+        }
+        if ((err = load_map_data(paths->mapdata, map)) != ERR_OK){
+            terrain_map_free(map);
+            fprintf(stderr, "failed to load map data from %s\n", paths->mapdata);
+        }
+        break;
     }
+    free(paths->mapdata);
+    paths->mapdata = NULL;
+    return err;
+}
 
-    if (!terrain_map_alloc(out)) {
-        fprintf(stderr, "malloc for struct terrain_map_t *out failed");
-        return ERR_MEMORY;
+static enum io_error_t write_path(FILE* out, const struct dynarr_t* path){
+    // Print header to csv file
+    fprintf(out, "x,y\n");
+    if (ferror(out))
+        return ERR_FILE;
+    // Print all x and y values in path to output file
+    for (size_t i = 0; i < path->length; i++) {
+        struct point_2d_t *point = dynarr_get(path, i);
+        fprintf(out, "%f,%f\n", point->x, point->y);
+        if (ferror(out))
+            return ERR_FILE;
     }
-
-    err = load_map_data(data_path, out);
-    if (err != ERR_OK) {
-        return err;
-    }
-
     return ERR_OK;
 }
 
 // Store data from out into csv output file
-enum io_error_t store_path(const char *out_path, const struct dynarr_t *path) {
-
-    FILE *out_file = fopen(out_path, "w");
-    if (out_file == NULL) {
-        return ERR_FILE;
+extern enum io_error_t io_store_path(struct io_filepaths_t* paths, const struct dynarr_t *path) {
+    FILE *out_file = fopen(paths->pathout, "w");
+    enum io_error_t err;
+    if (out_file) {
+        if ((err = write_path(out_file, path) != ERR_OK))
+            fprintf(stderr, "write error while storing generated path in file %s\n", paths->pathout);
+        if (fclose(out_file) != 0){
+            fprintf(stderr, "failed to close file %s\n", paths->pathout);
+            err = ERR_FILE;
+        }
+    } else {
+        fprintf(stderr, "failed to open path output file %s\n", paths->pathout);
+        err = ERR_FILE;
     }
-
-    // Print header to csv file
-    fprintf(out_file, "x,y\n");
-
-    // Print all x and y values in path to output file
-    for (size_t i = 0; i < path->length; i++) {
-        struct point_2d_t *point = dynarr_get(path, i);
-        fprintf(out_file, "%f,%f\n", point->x, point->y);
-    }
-
-    if (fclose(out_file) != 0) {
-        return ERR_FILE;
-    }
-
-    return ERR_OK;
+    free(paths->pathout);
+    paths->pathout = NULL;
+    return err;
 }

@@ -7,7 +7,7 @@
 #include "map.h"
 
 
-bool terrain_map_alloc(struct terrain_map_t *map) {
+extern bool terrain_map_alloc(struct terrain_map_t *map) {
 
     assert(map);
 
@@ -39,7 +39,7 @@ bool terrain_map_alloc(struct terrain_map_t *map) {
 }
 
 /* Frees the data arrays for `terrain_map_t` */
-void terrain_map_free(struct terrain_map_t *map) {
+extern void terrain_map_free(struct terrain_map_t *map) {
 
     // No-op if map is NULL
     if (!map) {
@@ -54,19 +54,19 @@ void terrain_map_free(struct terrain_map_t *map) {
     map->data_cost = NULL;
 }
 
-uint32_t terrain_map_get_npoints(const struct terrain_map_t *map){
+extern uint32_t terrain_map_get_npoints(const struct terrain_map_t *map){
     return map->npoints_x * map->npoints_y;
 }
 
 
-bool terrain_map_contains(
+extern bool terrain_map_contains(
     const struct terrain_map_t *map, uint32_t pos
 ) {
     return pos < terrain_map_get_npoints(map);
 }
 
 
-uint32_t terrain_map_get_pos(
+extern uint32_t terrain_map_get_pos(
     const struct terrain_map_t *map,
     const struct point_2d_t p
 ) {
@@ -75,8 +75,7 @@ uint32_t terrain_map_get_pos(
     return cell_y * map->npoints_x + cell_x;
 }
 
-
-struct grid_coord_t terrain_map_get_coord(
+extern struct grid_coord_t terrain_map_get_coord(
     const struct terrain_map_t *map,
     uint32_t pos
 ) {
@@ -85,7 +84,7 @@ struct grid_coord_t terrain_map_get_coord(
     return (struct grid_coord_t){.y = (uint32_t)div.quot, .x = (uint32_t)div.rem};
 }
 
-struct point_2d_t terrain_map_to_point(
+extern struct point_2d_t terrain_map_to_point(
     const struct terrain_map_t *map,
     struct grid_coord_t coord
 ){
@@ -95,7 +94,7 @@ struct point_2d_t terrain_map_to_point(
     };
 }
 
-bool terrain_map_is_diagonal(
+extern bool terrain_map_is_diagonal(
     const struct terrain_map_t *map,
     uint32_t cur_pos,
     uint32_t next_pos

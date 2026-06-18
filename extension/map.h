@@ -75,18 +75,17 @@ struct grid_coord_t {
  *
  * The metadata fields must already be populated.
  */
-bool terrain_map_alloc(struct terrain_map_t *map);
+extern bool terrain_map_alloc(struct terrain_map_t *map);
 
 /* Frees the data arrays for `terrain_map_t` */
-void terrain_map_free(struct terrain_map_t *map);
+extern void terrain_map_free(struct terrain_map_t *map);
 
-uint32_t terrain_map_get_npoints(const struct terrain_map_t *map);
-
-
-bool terrain_map_contains(const struct terrain_map_t *map, uint32_t pos);
+extern uint32_t terrain_map_get_npoints(const struct terrain_map_t *map);
 
 
-uint32_t terrain_map_get_pos(
+extern bool terrain_map_contains(const struct terrain_map_t *map, uint32_t pos);
+
+extern uint32_t terrain_map_get_pos(
     const struct terrain_map_t *map,
     const struct point_2d_t p
 );
@@ -102,7 +101,7 @@ struct point_2d_t terrain_map_to_point(
     struct grid_coord_t pos
 );
 
-bool terrain_map_is_diagonal(
+extern bool terrain_map_is_diagonal(
     const struct terrain_map_t *map,
     uint32_t cur_pos,
     uint32_t next_pos

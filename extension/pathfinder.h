@@ -1,7 +1,31 @@
+#ifndef PATHFINDER_H
+#define PATHFINDER_H
 #include <stdbool.h>
-
 #include "adt/dynarr.h"
 #include "map.h"
+
+
+struct pf_config_t {
+    struct pf_extra_out_t {
+        void *path_eval;
+        void *search_display;
+    } extra_out;
+    struct pf_weights_t {
+        float wxy_dist;
+        float wgrad;
+        float wcost;
+        float wheuristic;
+        float max_grad;
+    } weights;
+    struct point_2d_t start;
+    struct point_2d_t dest;
+};
+
+enum pf_result_t {
+    PF_RESULT_FOUND_PATH,   //found a path from start to destination
+    PF_RESULT_NO_PATH,      //could not find a path from start to destination
+    PF_RESULT_ERR_MEM       //failed to find a path due to a memory allocation error
+};
 
 
 /**
@@ -14,9 +38,11 @@
  *      an ordered list of waypoints.
  * @return `true` if a path was successfully found, `false` otherwise.
  */
-bool pathfinder(
+extern const char* pf_result_to_str(enum pf_result_t);
+
+extern enum pf_result_t pathfinder(
     const struct terrain_map_t *map,
-    const struct point_2d_t start,
-    const struct point_2d_t dest,
+    const struct pf_config_t *config,
     struct dynarr_t *path
 );
+#endif

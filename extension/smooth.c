@@ -25,7 +25,7 @@ void step(const struct terrain_map_t *map, const struct dynarr_t *path) {
   for (size_t i = 1; i < path->length; i++) {
     struct point_2d_t* third = dynarr_get(path,i);
     const struct point_2d_t base = lerp(first,*third,0.5f); // Midpoint of first and third
-    const struct point_2d_t new = lerp(*second,base,0.5f + (float)(cost(map,*second) - cost(map,base))/10.0f);
+    const struct point_2d_t new = lerp(*second,base,0.5f - (float)(cost(map,*second) - cost(map,base))/10.0f);
     first = *second; // Second moves to first
     *second = new; // The actual path changes
     second = third; // Third moves to second

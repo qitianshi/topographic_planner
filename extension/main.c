@@ -4,6 +4,7 @@
 #include "io.h"
 #include "map.h"
 #include "pathfinder.h"
+#include "smooth.h"
 
 #define META_PATH_IDX 1
 #define DATA_PATH_IDX 2
@@ -14,16 +15,17 @@
 #define EXPECTED_POINT_INPUT_NUM 2
 
 
+
 // Checks point is in correct format and updates struct values
 static bool parse_point(struct point_2d_t *point, char *input) {
     if (
         sscanf(input, "(%f,%f)", &(point->x), &(point->y))
         != EXPECTED_POINT_INPUT_NUM
     ) {
-        return EXIT_FAILURE;
+        return false;
     }
 
-    return EXIT_SUCCESS;
+    return true;
 }
 
 // argv[1]: meta path argv[2]: data path argv[3]: out path
@@ -53,15 +55,17 @@ int main(int argc, char **argv) {
         &map
     );
     if (err != ERR_OK) {
-        fprintf(stderr, "load_map exited with error %d", (int)err);
+        fprintf(stderr, "load_map exited with error %d\n", (int)err);
         return EXIT_FAILURE;
     }
 
-    const struct dynarr_t path;
+    struct dynarr_t path;
 
-    if (!pathfinder(&map, &start, &dest, &path)) {
+    if (!pathfinder(&map, start, dest, &path)) {
         return EXIT_FAILURE;
     }
+
+    smooth(&map,&path);
 
     // Write path to output file
     err = store_path(
@@ -69,7 +73,7 @@ int main(int argc, char **argv) {
         &path
     );
     if (err != ERR_OK) {
-        fprintf(stderr, "store_path exited with error %d", (int)err);
+        fprintf(stderr, "store_path exited with error %d\n", (int)err);
         return EXIT_FAILURE;
     }
 

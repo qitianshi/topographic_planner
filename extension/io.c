@@ -1,13 +1,15 @@
-#include <stdint.h>
+#include <inttypes.h>
 #include <stdio.h>
+#include <string.h>
+
 
 #include "io.h"
-#include "map.h"
 
 #define MAX_META_LINE_LEN 64
 #define MAX_META_LABEL_LEN 32
 #define MAX_META_VALUE_LEN ((MAX_META_LINE_LEN) - (MAX_META_LABEL_LEN) - 1)
 #define CONFIG_LINE_FORMAT "%31[^=]=%31s"
+#define EXPECTED_MATCHES 4
 
 /**
  * Sets the metadata of the struct from the config file
@@ -30,11 +32,11 @@ static enum io_error_t load_map_meta(
     // Check the section of each line up to the '=' character, and then
     // set the appropriate values
     while (fgets(curr_line, MAX_META_LINE_LEN, meta_file) != NULL) {
-        if (sscanf(curr_line, CONFIG_LINE_FORMAT, label, &value) == 2) {
+        if (sscanf(curr_line, CONFIG_LINE_FORMAT, label, value) == 2) {
             if (strcmp(label, "NPOINTS_X") == 0) {
-                out->npoints_x = (int)strtol(value, NULL, 10);
+                out->npoints_x = (uint32_t)strtol(value, NULL, 10);
             } else if (strcmp(label, "NPOINTS_Y") == 0) {
-                out->npoints_y = (int)strtol(value, NULL, 10);
+                out->npoints_y = (uint32_t)strtol(value, NULL, 10);
             } else if (strcmp(label, "RESOLUTION") == 0) {
                 out->resolution = strtof(value, NULL);
             } else {
@@ -80,12 +82,18 @@ static enum io_error_t load_map_data(
     int index = 0;
 
     // Skip header of csv file
-    fscanf(data_file, "%*1[\n]");
+    if (fscanf(data_file, "%*[^\n]\n") == EOF){
+        return ERR_FILE;
+    }
 
     // Check the validity of each line of data and set the appropriate values
-    while (
-        fscanf(data_file, "%d,%d,%f,%c", &x, &y, &elevation, &cost) != EOF
-    ) {
+    for (int matches;
+        (matches = fscanf(data_file, "%d,%d,%f,%"SCNu8, &x, &y, &elevation, &cost)) != EOF;
+    ){
+        if (matches != EXPECTED_MATCHES){
+            fprintf(stderr, "%s: malformed input on line %d\n", __func__, index + 1);
+            return ERR_MALFORMED;
+        }
         // Check x and y values are valid
         if (
             x != x_next ||
@@ -97,17 +105,19 @@ static enum io_error_t load_map_data(
         }
 
         // Update values
-        if (y >= out->npoints_y - 1) {
-            x_next++;
-            y_next = 0;
+        if (x >= out->npoints_x - 1) {
+            x_next = 0;
+            ++y_next;
         } else {
-            y_next++;
+            ++x_next;
         }
         out->data_elevation[index] = elevation;
         out->data_cost[index] = cost;
         index++;
     }
-
+    if (y_next != out->npoints_y){
+        return ferror(data_file) ? ERR_FILE : ERR_NPOINTS;
+    }
     if (fclose(data_file) != 0) {
         return ERR_FILE;
     }
@@ -149,11 +159,11 @@ enum io_error_t store_path(const char *out_path, const struct dynarr_t *path) {
     }
 
     // Print header to csv file
-    fprintf(out_file, "x,y");
+    fprintf(out_file, "x,y\n");
 
     // Print all x and y values in path to output file
-    for (int i = 0; i < path->length; i++) {
-        const struct point_2d_t *point = dynarr_get(path, i);
+    for (size_t i = 0; i < path->length; i++) {
+        struct point_2d_t *point = dynarr_get(path, i);
         fprintf(out_file, "%f,%f\n", point->x, point->y);
     }
 

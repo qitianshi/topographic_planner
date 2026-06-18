@@ -6,6 +6,7 @@ enum io_error_t {
     ERR_FILE,           // System file I/O error
     ERR_MALFORMED,      // Malformed file (incorrect format)
     ERR_DIMENSION,      // Incorrect dimensions (for data load)
+    ERR_NPOINTS,        // Number of points loaded does not match the expected
     ERR_MEMORY          // Failed memory allocation
 };
 
@@ -44,8 +45,8 @@ enum io_error_t {
  * @param out The output pointer.
  */
 enum io_error_t load_map(
-    char *meta_path,
-    char *data_path,
+    const char *meta_path,
+    const char *data_path,
     struct terrain_map_t *out
 );
 

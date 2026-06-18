@@ -34,6 +34,4 @@ void dynarr_clear(struct dynarr_t *arr);
 
 /* Frees the array */
 void dynarr_free(struct dynarr_t *arr);
-
-
 #endif

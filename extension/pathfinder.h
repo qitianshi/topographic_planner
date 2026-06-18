@@ -16,7 +16,7 @@
  */
 bool pathfinder(
     const struct terrain_map_t *map,
-    const struct point_2d_t *start,
-    const struct point_2d_t *dest,
+    const struct point_2d_t start,
+    const struct point_2d_t dest,
     struct dynarr_t *path
 );

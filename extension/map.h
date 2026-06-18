@@ -1,3 +1,5 @@
+#ifndef MAP_H
+#define MAP_H
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -61,6 +63,10 @@ struct point_2d_t {
     phys_dist_t y;
 };
 
+struct grid_coord_t {
+    uint32_t x;
+    uint32_t y;
+};
 
 // Functions
 
@@ -73,3 +79,32 @@ bool terrain_map_alloc(struct terrain_map_t *map);
 
 /* Frees the data arrays for `terrain_map_t` */
 void terrain_map_free(struct terrain_map_t *map);
+
+uint32_t terrain_map_get_npoints(const struct terrain_map_t *map);
+
+
+bool terrain_map_contains(const struct terrain_map_t *map, uint32_t pos);
+
+
+uint32_t terrain_map_get_pos(
+    const struct terrain_map_t *map,
+    const struct point_2d_t p
+);
+
+
+struct grid_coord_t terrain_map_get_coord(
+    const struct terrain_map_t *map,
+    uint32_t pos
+);
+
+struct point_2d_t terrain_map_to_point(
+    const struct terrain_map_t *map,
+    struct grid_coord_t pos
+);
+
+bool terrain_map_is_diagonal(
+    const struct terrain_map_t *map,
+    uint32_t cur_pos,
+    uint32_t next_pos
+);
+#endif

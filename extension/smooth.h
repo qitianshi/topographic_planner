@@ -6,7 +6,7 @@
 
 #include <stdbool.h>
 
-#define SMOOTH_STEPS 100
+#define SMOOTH_STEPS 10
 
 void smooth(
     const struct terrain_map_t *map,

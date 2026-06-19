@@ -3,10 +3,11 @@ CFLAGS  ?= -std=c99 -g \
 	-I../include \
 	-D_POSIX_SOURCE -D_DEFAULT_SOURCE \
 	-Wall -Werror -Wpedantic -Wshadow -Wconversion
-BUILD = ../build
+BUILD_DIR = ../.build
 
 SRCFILES = io.c map.c main.c pathfinder.c adt/dynarr.c adt/heap.c adt/bitarr.c smooth.c
-OBJFILES = $(SRCFILES:%.c=$(BUILD)/%.o)
+OBJFILES = $(SRCFILES:%.c=$(BUILD_DIR)/%.o)
+DEPFILES = $(OBJFILES:%.o=%.d)
 LDLIBS = -lm
 
 .PHONY: all
@@ -14,15 +15,18 @@ LDLIBS = -lm
 all: pathfind
 
 clean:
-	rm -rf $(BUILD) pathfind
+	$(RM) -r $(BUILD_DIR)
+	$(RM) pathfind
+
+-include $(DEPFILES)
 
 pathfind: $(OBJFILES)
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-$(BUILD)/%.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $^
+$(BUILD_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) -MMD -c $< -o $@
 
-$(OBJFILES): | $(BUILD) $(BUILD)/adt
+$(OBJFILES): | $(BUILD_DIR) $(BUILD_DIR)/adt
 
-$(BUILD) $(BUILD)/adt:
-	mkdir -p $(BUILD) $(BUILD)/adt
+$(BUILD_DIR) $(BUILD_DIR)/adt:
+	mkdir -p $(BUILD_DIR) $(BUILD_DIR)/adt

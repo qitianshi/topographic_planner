@@ -3,7 +3,7 @@
 set -a
 
 # set all the environment variables
-source data/map2.config
+source data/pathfinder.config
 
 # ensure "VAR=VAL" definitons will no longer be exported to child processes
 set +a

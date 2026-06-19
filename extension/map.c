@@ -79,9 +79,11 @@ extern struct grid_coord_t terrain_map_get_coord(
     const struct terrain_map_t *map,
     uint32_t pos
 ) {
-    assert(pos < LONG_MAX);
-    ldiv_t div = ldiv(pos, map->npoints_x);
-    return (struct grid_coord_t){.y = (uint32_t)div.quot, .x = (uint32_t)div.rem};
+    lldiv_t div = lldiv(pos, map->npoints_x);
+    return (struct grid_coord_t){
+        .y = (uint32_t)div.quot,
+        .x = (uint32_t)div.rem
+    };
 }
 
 extern struct point_2d_t terrain_map_to_point(

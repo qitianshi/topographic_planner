@@ -5,7 +5,7 @@ CFLAGS  ?= -std=c99 -g \
 	-Wall -Werror -Wpedantic -Wshadow -Wconversion
 BUILD = ../build
 
-SRCFILES = io.c map.c main.c pathfinder.c adt/dynarr.c adt/heap.c adt/bitarr.c smooth.c smooth.h
+SRCFILES = io.c map.c main.c pathfinder.c adt/dynarr.c adt/heap.c adt/bitarr.c smooth.c
 OBJFILES = $(SRCFILES:%.c=$(BUILD)/%.o)
 LDLIBS = -lm
 

@@ -67,6 +67,21 @@ static enum io_error_t str_to_point(const char *s, struct point_2d_t *point) {
         return ERR_OK;
 }
 
+/* Copy implementation of POSIX strdup */
+static char *pf_strdup(const char *s) {
+
+    if (!s) return NULL;
+
+    size_t len = strlen(s);
+
+    // +1 byte for the '\0' terminator
+    char *dup = malloc(len + 1);
+    if (!dup) return NULL;
+
+    memcpy(dup, s, len + 1);
+    return dup;
+}
+
 
 static enum io_error_t getenv_uint32(const char* name, uint32_t* val){
     const char *valstr = getenv(name);
@@ -87,7 +102,7 @@ static enum io_error_t getenv_str(const char* name, char** val){
     const char *valstr = getenv(name);
     if (!valstr)
         return ERR_VAR_NOT_FOUND;
-    *val = strdup(valstr);
+    *val = pf_strdup(valstr);
     return *val ? ERR_OK : ERR_MEMORY;
 }
 
@@ -186,7 +201,7 @@ static void* load_extra_out_config(const char* name){
         return NULL;
     }
     fclose(f);
-    return strdup(name);
+    return pf_strdup(name);
 }
 
 static void load_extra_out_configs(struct pf_extra_out_t* extra_out){

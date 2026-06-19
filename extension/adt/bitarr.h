@@ -7,7 +7,7 @@ typedef unsigned char bitarr_t;
 
 bitarr_t *bitarr_make(size_t num_bits);
 
-void bitarr_free(bitarr_t* arr);
+void bitarr_free(bitarr_t *arr);
 
 bool bitarr_get(const bitarr_t *arr, size_t bit_idx);
 

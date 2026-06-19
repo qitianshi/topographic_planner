@@ -10,11 +10,13 @@
 
 static void heap_swap(struct heap_t *heap, size_t index_a, size_t index_b) {
     assert(heap);
-    if (index_a == index_b) return;
+    if (index_a == index_b)
+        return;
 
     char *a = (char *)heap_get(heap, index_a);
     char *b = (char *)heap_get(heap, index_b);
-    if (!a || !b) return;
+    if (!a || !b)
+        return;
 
     // Swap byte by byte to avoid malloc.
     size_t elem_size = heap->arr.elem_size;
@@ -23,7 +25,7 @@ static void heap_swap(struct heap_t *heap, size_t index_a, size_t index_b) {
         a[i] = b[i];
         b[i] = tmp;
     }
-    if (heap->str_idx_func){
+    if (heap->str_idx_func) {
         heap->str_idx_func(b, index_b, heap->state);
         heap->str_idx_func(a, index_a, heap->state);
     }
@@ -33,9 +35,9 @@ static void heap_fix(struct heap_t *heap, size_t index);
 
 static bool heap_is_larger(
     struct heap_t *heap,
-    const void* left_val_idx,
-    const void* right_val_idx
-){
+    const void *left_val_idx,
+    const void *right_val_idx
+) {
     return heap->comp_func(left_val_idx, right_val_idx, heap->state) > 0;
 }
 
@@ -86,7 +88,7 @@ static void heap_build(struct heap_t *heap) {
 }
 */
 
-bool heap_is_empty(struct heap_t *heap){
+bool heap_is_empty(struct heap_t *heap) {
     return heap->arr.length == 0;
 }
 
@@ -96,7 +98,7 @@ bool heap_make(
     size_t elem_size,
     comp_func_t comp_func,
     str_idx_t str_loc_func,
-    void* state
+    void *state
 ) {
     assert(heap);
     assert(comp_func);
@@ -137,8 +139,9 @@ bool heap_insert(struct heap_t *heap, const void *data) {
     assert(data);
 
     // Append to the end
-    if (!dynarr_append(&heap->arr, data)) return false;
-    if(heap->str_idx_func){
+    if (!dynarr_append(&heap->arr, data))
+        return false;
+    if (heap->str_idx_func) {
         heap->str_idx_func(data, heap->arr.length - 1, heap->state);
     }
     heap_percolate_up(heap, heap->arr.length - 1);
@@ -152,7 +155,8 @@ void *heap_get_root(const struct heap_t *heap) {
 
 void heap_pop_root(struct heap_t *heap) {
     assert(heap);
-    if (heap->arr.length == 0) return;
+    if (heap->arr.length == 0)
+        return;
 
     size_t last_idx = heap->arr.length - 1;
 
@@ -175,7 +179,7 @@ void heap_free(struct heap_t *heap) {
     dynarr_free(&heap->arr);
 }
 
-void* heap_get(struct heap_t *heap, size_t item_idx){
+void *heap_get(struct heap_t *heap, size_t item_idx) {
     assert(item_idx < heap->arr.length);
     return dynarr_get(&heap->arr, item_idx);
 }

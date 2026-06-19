@@ -21,8 +21,7 @@ extern bool terrain_map_alloc(struct terrain_map_t *map) {
         return false;
     }
 
-    map->data_elevation =
-        malloc(num_elements * sizeof(*map->data_elevation));
+    map->data_elevation = malloc(num_elements * sizeof(*map->data_elevation));
     if (!map->data_elevation) {
         return false;
     }
@@ -54,13 +53,14 @@ extern void terrain_map_free(struct terrain_map_t *map) {
     map->data_cost = NULL;
 }
 
-extern uint32_t terrain_map_get_npoints(const struct terrain_map_t *map){
+extern uint32_t terrain_map_get_npoints(const struct terrain_map_t *map) {
     return map->npoints_x * map->npoints_y;
 }
 
 
 extern bool terrain_map_contains(
-    const struct terrain_map_t *map, uint32_t pos
+    const struct terrain_map_t *map,
+    uint32_t pos
 ) {
     return pos < terrain_map_get_npoints(map);
 }
@@ -81,15 +81,14 @@ extern struct grid_coord_t terrain_map_get_coord(
 ) {
     lldiv_t div = lldiv(pos, map->npoints_x);
     return (struct grid_coord_t){
-        .y = (uint32_t)div.quot,
-        .x = (uint32_t)div.rem
+        .y = (uint32_t)div.quot, .x = (uint32_t)div.rem
     };
 }
 
 extern struct point_2d_t terrain_map_to_point(
     const struct terrain_map_t *map,
     struct grid_coord_t coord
-){
+) {
     return (struct point_2d_t){
         .x = (phys_dist_t)coord.x * map->resolution,
         .y = (phys_dist_t)coord.y * map->resolution

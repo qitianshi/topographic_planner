@@ -7,22 +7,22 @@ enum io_error_t {
     ERR_FILE,            // System file I/O error
     ERR_MALFORMED,       // Malformed file (incorrect format)
     ERR_DIMENSION,       // Incorrect dimensions (for data load)
-    ERR_NPOINTS,         // Number of points loaded does not match the expected
-    ERR_MEMORY,          // Failed memory allocation
-    ERR_VAR_NOT_FOUND,   // An environment variable was not found
-    ERR_VAR_FORMAT,      // invalid format for value
+    ERR_NPOINTS, // Number of points loaded does not match the expected
+    ERR_MEMORY, // Failed memory allocation
+    ERR_VAR_NOT_FOUND, // An environment variable was not found
+    ERR_VAR_FORMAT, // invalid format for value
     ERR_VAR_OUT_OF_RANGE // value for an environment variable was out of range
 };
 
 struct io_filepaths_t {
-    char *mapdata;    //csv map data input file
-    char *pathout;    //csv path data output file
+    char *mapdata; // csv map data input file
+    char *pathout; // csv path data output file
 };
 
-extern const char* io_err_to_str(enum io_error_t err);
-extern enum io_error_t io_load_paths(struct io_filepaths_t* paths);
-extern void io_free_paths(struct io_filepaths_t* paths);
-extern enum io_error_t io_load_pathfinder_config(struct pf_config_t* config);
+extern const char *io_err_to_str(enum io_error_t err);
+extern enum io_error_t io_load_paths(struct io_filepaths_t *paths);
+extern void io_free_paths(struct io_filepaths_t *paths);
+extern enum io_error_t io_load_pathfinder_config(struct pf_config_t *config);
 
 
 /**
@@ -57,7 +57,7 @@ extern enum io_error_t io_load_pathfinder_config(struct pf_config_t* config);
  * @param map Output pointer to the map.
  */
 extern enum io_error_t io_load_map(
-    struct io_filepaths_t* paths,
+    struct io_filepaths_t *paths,
     struct terrain_map_t *map
 );
 
@@ -72,4 +72,7 @@ extern enum io_error_t io_load_map(
  * 0.3,0.4
  * ```
  */
-extern enum io_error_t io_store_path(struct io_filepaths_t* paths, const struct dynarr_t *path);
+extern enum io_error_t io_store_path(
+    struct io_filepaths_t *paths,
+    const struct dynarr_t *path
+);

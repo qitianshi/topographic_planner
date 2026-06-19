@@ -4,8 +4,8 @@
 #include "dynarr.h"
 
 
-typedef int (*comp_func_t)(const void* b, const void* a, void* state);
-typedef void (*str_idx_t)(const void* node, size_t index, void* state);
+typedef int (*comp_func_t)(const void *b, const void *a, void *state);
+typedef void (*str_idx_t)(const void *node, size_t index, void *state);
 
 /**
  * Heap data structure
@@ -20,7 +20,7 @@ struct heap_t {
     void *state;
 };
 
-//need to map an element void* to an size_t index
+// need to map an element void* to an size_t index
 
 
 /* Creates a new heap */
@@ -30,7 +30,7 @@ bool heap_make(
     size_t elem_size,
     comp_func_t comp_func,
     str_idx_t str_idx_func,
-    void* state
+    void *state
 );
 
 bool heap_is_empty(struct heap_t *heap);

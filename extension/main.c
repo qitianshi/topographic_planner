@@ -1,13 +1,16 @@
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "io.h"
 #include "map.h"
 #include "pathfinder.h"
 #include "smooth.h"
 
-void report_error(enum io_error_t err){
-    fprintf(stderr, "pathfinder exited with error %s (%d)\n", io_err_to_str(err), (int)err);
+void report_error(enum io_error_t err) {
+    fprintf(
+        stderr, "pathfinder exited with error %s (%d)\n", io_err_to_str(err),
+        (int)err
+    );
 }
 
 // argv[1]: meta path argv[2]: data path argv[3]: out path
@@ -21,7 +24,7 @@ int main(int argc, char **argv) {
 
     enum io_error_t err;
 
-    if ((err = io_load_paths(&filepaths)) != ERR_OK){
+    if ((err = io_load_paths(&filepaths)) != ERR_OK) {
         report_error(err);
         return EXIT_FAILURE;
     }

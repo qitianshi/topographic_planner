@@ -3,9 +3,9 @@
 #include <math.h>
 #include <stdio.h>
 
+#include "adt/bitarr.h"
 #include "adt/dynarr.h"
 #include "adt/heap.h"
-#include "adt/bitarr.h"
 #include "map.h"
 #include "pathfinder.h"
 
@@ -19,14 +19,14 @@
 
 struct pf_cell_t {
     uint32_t pos;
-    phys_dist_t path_len; //heuristic + dist to cell from start
+    phys_dist_t path_len; // heuristic + dist to cell from start
 };
 
 struct pf_cells_t {
     struct heap_t to_explore;
     uint32_t *parents;
     uint32_t *heap_idxs;
-    unsigned char* intree;
+    unsigned char *intree;
     float *dists;
     uint32_t start_pos;
     uint32_t dest_pos;
@@ -36,9 +36,9 @@ static bool pf_is_reachable(float cost) {
     return cost != PF_COST_INFINITY;
 }
 
-static int pf_cell_cmp(const void* c1, const void* c2, void* state){
-    const struct pf_cell_t* cell1 = c1;
-    const struct pf_cell_t* cell2 = c2;
+static int pf_cell_cmp(const void *c1, const void *c2, void *state) {
+    const struct pf_cell_t *cell1 = c1;
+    const struct pf_cell_t *cell2 = c2;
     return cell1->path_len < cell2->path_len ? 1 : -1;
 }
 
@@ -60,7 +60,7 @@ static bool pf_cells_queue_contains(struct pf_cells_t *cells, size_t pos) {
     return cells->heap_idxs[pos] != PF_NOT_IN_HEAP;
 }
 
-static bool pf_cells_queue_get_idx(struct pf_cells_t* cells, size_t pos){
+static bool pf_cells_queue_get_idx(struct pf_cells_t *cells, size_t pos) {
     return cells->heap_idxs[pos] - (PF_NOT_IN_HEAP + 1);
 }
 
@@ -68,8 +68,9 @@ static phys_dist_t pf_cell_calc_xy_dist(
     const struct terrain_map_t *map,
     uint32_t cur_pos,
     uint32_t next_pos
-){
-    return (terrain_map_is_diagonal(map, cur_pos, next_pos) ? PF_SQRT_2 : 1) * map->resolution;
+) {
+    return (terrain_map_is_diagonal(map, cur_pos, next_pos) ? PF_SQRT_2 : 1) *
+           map->resolution;
 }
 
 static phys_dist_t pf_cell_calc_grad(
@@ -77,17 +78,18 @@ static phys_dist_t pf_cell_calc_grad(
     uint32_t cur_pos,
     uint32_t next_pos,
     phys_dist_t xy_dist
-){
-    const float elev_diff = fabsf(map->data_elevation[cur_pos] - map->data_elevation[next_pos]);
+) {
+    const float elev_diff =
+        fabsf(map->data_elevation[cur_pos] - map->data_elevation[next_pos]);
     return elev_diff / xy_dist;
 }
 
 static phys_dist_t pf_cell_calc_dist(
     const struct terrain_map_t *map,
-    const struct pf_weights_t* weights,
+    const struct pf_weights_t *weights,
     uint32_t cur_pos,
     uint32_t next_pos
-){
+) {
     struct grid_coord_t cur_coord = terrain_map_get_coord(map, cur_pos);
     struct grid_coord_t next_coord = terrain_map_get_coord(map, next_pos);
     struct point_2d_t cur_point = terrain_map_to_point(map, cur_coord);
@@ -100,10 +102,10 @@ static phys_dist_t pf_cell_calc_dist(
 
 static float pf_cell_calc_edge_cost(
     const struct terrain_map_t *map,
-    const struct pf_weights_t* weights,
+    const struct pf_weights_t *weights,
     const uint32_t cur_pos,
     const uint32_t next_pos
-){
+) {
     const uint8_t cost = map->data_cost[next_pos];
     if (map->data_cost[next_pos] == UINT8_MAX)
         return PF_COST_INFINITY;
@@ -111,9 +113,8 @@ static float pf_cell_calc_edge_cost(
     const float grad = pf_cell_calc_grad(map, cur_pos, next_pos, xy_dist);
     if (grad >= weights->max_grad)
         return PF_COST_INFINITY;
-    return weights->wgrad * grad
-        + weights->wxy_dist * xy_dist
-        + weights->wcost * cost;
+    return weights->wgrad * grad + weights->wxy_dist * xy_dist +
+           weights->wcost * cost;
 }
 
 static bool pf_cells_create(
@@ -136,7 +137,7 @@ static bool pf_cells_create(
            cells->dists && success;
 }
 
-static void pf_cells_free(struct pf_cells_t *cells){
+static void pf_cells_free(struct pf_cells_t *cells) {
     free(cells->parents);
     bitarr_free(cells->intree);
     free(cells->dists);
@@ -145,19 +146,20 @@ static void pf_cells_free(struct pf_cells_t *cells){
 
 static void pf_cells_enqueue(
     const struct terrain_map_t *map,
-    const struct pf_weights_t* weights,
+    const struct pf_weights_t *weights,
     struct pf_cells_t *cells,
     uint32_t cur_pos,
     uint32_t next_pos
 ) {
-    const float edge_cost = pf_cell_calc_edge_cost(map, weights, cur_pos, next_pos);
+    const float edge_cost =
+        pf_cell_calc_edge_cost(map, weights, cur_pos, next_pos);
     if (!pf_is_reachable(edge_cost))
         return;
     cells->dists[next_pos] = edge_cost + cells->dists[cur_pos];
-    const float dist_to_dest = pf_cell_calc_dist(map, weights, next_pos, cells->dest_pos);
+    const float dist_to_dest =
+        pf_cell_calc_dist(map, weights, next_pos, cells->dest_pos);
     struct pf_cell_t cell = {
-        .pos = next_pos,
-        .path_len = cells->dists[next_pos] + dist_to_dest
+        .pos = next_pos, .path_len = cells->dists[next_pos] + dist_to_dest
     };
     cells->parents[next_pos] = cur_pos;
     const bool success = heap_insert(&cells->to_explore, &cell);
@@ -171,7 +173,8 @@ static void pf_cells_consider_shorter_dist(
     uint32_t cur_pos,
     uint32_t next_pos
 ) {
-    const float edge_cost = pf_cell_calc_edge_cost(map, weights, cur_pos, next_pos);
+    const float edge_cost =
+        pf_cell_calc_edge_cost(map, weights, cur_pos, next_pos);
     if (!pf_is_reachable(edge_cost))
         return;
     const phys_dist_t dist_to_cell = cells->dists[cur_pos] + edge_cost;
@@ -186,26 +189,31 @@ static void pf_cells_consider_shorter_dist(
     heap_dec_key(&cells->to_explore, cell_idx);
 }
 
-static const struct pf_cell_t* pf_cells_queue_get_closest(const struct pf_cells_t *cells){
+static const struct pf_cell_t *pf_cells_queue_get_closest(
+    const struct pf_cells_t *cells
+) {
     return heap_get_root(&cells->to_explore);
 }
 
-static void pf_cells_queue_pop_closest(struct pf_cells_t* cells){
+static void pf_cells_queue_pop_closest(struct pf_cells_t *cells) {
     heap_pop_root(&cells->to_explore);
 }
 
-static bool pf_cells_queue_is_empty(struct pf_cells_t* cells){
+static bool pf_cells_queue_is_empty(struct pf_cells_t *cells) {
     return heap_is_empty(&cells->to_explore);
 }
 
-static FILE* pf_get_stream(void* extra_out){
+static FILE *pf_get_stream(void *extra_out) {
     if (extra_out == NULL)
         return NULL;
-    FILE* out;
-    if (extra_out != stdout){
+    FILE *out;
+    if (extra_out != stdout) {
         out = fopen(extra_out, "a");
-        if (!out){
-            fprintf(stderr, "failed to open search display output file %s\n", (char*)extra_out);
+        if (!out) {
+            fprintf(
+                stderr, "failed to open search display output file %s\n",
+                (char *)extra_out
+            );
             free(extra_out);
             out = NULL;
         }
@@ -215,12 +223,13 @@ static FILE* pf_get_stream(void* extra_out){
 }
 
 static void pf_display_search(
-    const struct terrain_map_t* map,
-    const struct pf_config_t* config,
-    struct pf_cells_t* cells,
-    const struct dynarr_t* path
-){
-    FILE *out = config ? pf_get_stream(config->extra_out.search_display) : stdout;
+    const struct terrain_map_t *map,
+    const struct pf_config_t *config,
+    struct pf_cells_t *cells,
+    const struct dynarr_t *path
+) {
+    FILE *out =
+        config ? pf_get_stream(config->extra_out.search_display) : stdout;
     if (!out)
         return;
     size_t npoints = terrain_map_get_npoints(map);
@@ -258,7 +267,7 @@ static void pf_display_search(
 
 static bool pf_search(
     const struct terrain_map_t *map,
-    const struct pf_weights_t* weights,
+    const struct pf_weights_t *weights,
     struct pf_cells_t *cells
 ) {
     uint32_t cur_pos = cells->start_pos;
@@ -287,11 +296,12 @@ static bool pf_search(
         }
         if (pf_cells_tree_contains(cells, cells->dest_pos))
             return true;
-        if (pf_cells_queue_is_empty(cells)){
+        if (pf_cells_queue_is_empty(cells)) {
             return false;
         }
-        const struct pf_cell_t *closest_cell = pf_cells_queue_get_closest(cells);
-        if (!pf_is_reachable(closest_cell->path_len)){
+        const struct pf_cell_t *closest_cell =
+            pf_cells_queue_get_closest(cells);
+        if (!pf_is_reachable(closest_cell->path_len)) {
             return false;
         }
         cur_pos = closest_cell->pos;
@@ -299,10 +309,10 @@ static bool pf_search(
     }
 }
 
-static void pf_reverse_path(const struct dynarr_t* path){
+static void pf_reverse_path(const struct dynarr_t *path) {
     struct point_2d_t *i = dynarr_get(path, 0);
     struct point_2d_t *j = dynarr_get(path, path->length - 1);
-    for (; i < j; ++i, --j){
+    for (; i < j; ++i, --j) {
         struct point_2d_t temp;
         temp = *i;
         *i = *j;
@@ -312,20 +322,17 @@ static void pf_reverse_path(const struct dynarr_t* path){
 
 static bool pf_create_path(
     const struct terrain_map_t *map,
-    const struct pf_cells_t* cells,
+    const struct pf_cells_t *cells,
     struct dynarr_t *path
 ) {
     if (!dynarr_make(path, sizeof(struct point_2d_t), PF_PATH_INITIAL_CAPACITY))
         return false;
     cells->parents[cells->start_pos] = UINT32_MAX;
-    for (
-        uint32_t cur_pos = cells->dest_pos;
-        cur_pos != UINT32_MAX;
-        cur_pos = cells->parents[cur_pos]
-    ){
+    for (uint32_t cur_pos = cells->dest_pos; cur_pos != UINT32_MAX;
+         cur_pos = cells->parents[cur_pos]) {
         struct grid_coord_t coord = terrain_map_get_coord(map, cur_pos);
         struct point_2d_t point = terrain_map_to_point(map, coord);
-        if (!dynarr_append(path, &point)){
+        if (!dynarr_append(path, &point)) {
             dynarr_free(path);
             return false;
         }
@@ -337,14 +344,14 @@ static bool pf_create_path(
 
 static void pf_eval_path(
     const struct terrain_map_t *map,
-    const struct pf_config_t* config,
+    const struct pf_config_t *config,
     const struct pf_cells_t *cells,
     struct dynarr_t *path
-){
+) {
     if (path->length == 0)
         return;
 
-    FILE* out = config ? pf_get_stream(config->extra_out.path_eval) : stdout;
+    FILE *out = config ? pf_get_stream(config->extra_out.path_eval) : stdout;
     if (!out)
         return;
     uint32_t prev_pos = cells->start_pos;
@@ -361,25 +368,30 @@ static void pf_eval_path(
     struct point_2d_t max_edge_point = {.x = NAN, .y = NAN};
     float min_edge_cost = FLT_MAX;
     float max_edge_cost = FLT_MIN;
-    const struct pf_weights_t* weights = &config->weights;
-    for (size_t i = 0; i < path->length; ++i){
-        struct point_2d_t point = *(struct point_2d_t*)dynarr_get(path, i);
+    const struct pf_weights_t *weights = &config->weights;
+    for (size_t i = 0; i < path->length; ++i) {
+        struct point_2d_t point = *(struct point_2d_t *)dynarr_get(path, i);
         uint32_t pos = terrain_map_get_pos(map, point);
         struct grid_coord_t coord = terrain_map_get_coord(map, pos);
         float edge_cost = pf_cell_calc_edge_cost(map, weights, prev_pos, pos);
-        phys_dist_t dist_to_dest = pf_cell_calc_dist(map, weights, pos, cells->dest_pos);
+        phys_dist_t dist_to_dest =
+            pf_cell_calc_dist(map, weights, pos, cells->dest_pos);
         phys_dist_t xy_dist = pf_cell_calc_xy_dist(map, prev_pos, pos);
         phys_dist_t grad = pf_cell_calc_grad(map, prev_pos, pos, xy_dist);
         phys_dist_t cost = map->data_cost[pos];
-        phys_dist_t wxy_dist =  weights->wxy_dist * xy_dist;
-        phys_dist_t wgrad =  weights->wgrad * grad;
-        phys_dist_t wcost =  weights->wcost * cost;
+        phys_dist_t wxy_dist = weights->wxy_dist * xy_dist;
+        phys_dist_t wgrad = weights->wgrad * grad;
+        phys_dist_t wcost = weights->wcost * cost;
         float dist = cells->dists[pos];
         total_dist_from_dest += dist_to_dest;
         total_dist_from_start += dist;
-        txy += xy_dist; tg += grad; tc += cost;
-        twxy += wxy_dist; twg += wgrad; twc += wcost;
-        if (edge_cost < min_edge_cost){
+        txy += xy_dist;
+        tg += grad;
+        tc += cost;
+        twxy += wxy_dist;
+        twg += wgrad;
+        twc += wcost;
+        if (edge_cost < min_edge_cost) {
             min_edge_point = point;
             min_edge_cost = edge_cost;
         }
@@ -432,7 +444,7 @@ static void pf_eval_path(
 
 enum pf_result_t pathfinder(
     const struct terrain_map_t *map,
-    const struct pf_config_t* config,
+    const struct pf_config_t *config,
     struct dynarr_t *path
 ) {
     struct pf_cells_t cells;
@@ -441,11 +453,11 @@ enum pf_result_t pathfinder(
         return PF_RESULT_ERR_MEM;
     }
 
-    if (!pf_search(map, &config->weights, &cells)){
+    if (!pf_search(map, &config->weights, &cells)) {
         pf_cells_free(&cells);
         return PF_RESULT_NO_PATH;
     }
-    if (!pf_create_path(map, &cells, path)){
+    if (!pf_create_path(map, &cells, path)) {
         pf_cells_free(&cells);
         return PF_RESULT_ERR_MEM;
     }
@@ -455,11 +467,12 @@ enum pf_result_t pathfinder(
     return PF_RESULT_FOUND_PATH;
 }
 
-extern const char *pf_result_to_str(enum pf_result_t err){
+extern const char *pf_result_to_str(enum pf_result_t err) {
     const char *err_msg[] = {
         [PF_RESULT_FOUND_PATH] = "found a path from start to destination",
         [PF_RESULT_NO_PATH] = "could not find a path from start to destination",
-        [PF_RESULT_ERR_MEM] =  "failed to find a path due to a memory allocation error"
+        [PF_RESULT_ERR_MEM] =
+            "failed to find a path due to a memory allocation error"
     };
     if (err < PF_RESULT_FOUND_PATH || err > PF_RESULT_ERR_MEM)
         return "unknown error";

@@ -7,7 +7,7 @@ bitarr_t *bitarr_make(size_t num_bits) {
     return calloc(num_bytes, 1);
 }
 
-void bitarr_free(bitarr_t* arr){
+void bitarr_free(bitarr_t *arr) {
     free(arr);
 }
 

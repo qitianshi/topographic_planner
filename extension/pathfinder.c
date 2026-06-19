@@ -357,8 +357,8 @@ static void pf_eval_path(
     phys_dist_t twg = 0;
     phys_dist_t twc = 0;
 
-    struct point_2d_t min_edge_point;
-    struct point_2d_t max_edge_point;
+    struct point_2d_t min_edge_point = {.x = NAN, .y = NAN};
+    struct point_2d_t max_edge_point = {.x = NAN, .y = NAN};
     float min_edge_cost = FLT_MAX;
     float max_edge_cost = FLT_MIN;
     const struct pf_weights_t* weights = &config->weights;

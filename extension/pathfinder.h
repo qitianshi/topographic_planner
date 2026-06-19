@@ -5,7 +5,6 @@
 #include "map.h"
 #include <stdbool.h>
 
-
 struct pf_extra_out_t {
     void *path_eval;
     void *search_display;

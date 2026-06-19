@@ -3,7 +3,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+
 #include "io.h"
+#include "pathfinder.h"
 
 #define MAX_META_LINE_LEN 64
 #define MAX_META_LABEL_LEN 32
@@ -36,7 +38,7 @@ static enum io_error_t str_to_uint32(const char* s, uint32_t* val){
     ulong_val = strtoul(s, &end, 10);
     if (end == s)
         return ERR_VAR_FORMAT;
-    else if (errno == ERANGE || ulong_val < 0 || ulong_val > UINT32_MAX)
+    else if (errno == ERANGE || ulong_val > UINT32_MAX)
         return ERR_VAR_OUT_OF_RANGE;
     else{
         *val = (uint32_t)ulong_val;
@@ -67,22 +69,22 @@ static enum io_error_t str_to_point(const char *s, struct point_2d_t *point) {
 
 
 static enum io_error_t getenv_uint32(const char* name, uint32_t* val){
-    char* valstr = getenv(name);
+    const char *valstr = getenv(name);
     return valstr ? str_to_uint32(valstr, val) : ERR_VAR_NOT_FOUND;
 }
 
 static enum io_error_t getenv_float(const char* name, float* val){
-    char* valstr = getenv(name);
+    const char *valstr = getenv(name);
     return valstr ? str_to_float(valstr, val) : ERR_VAR_NOT_FOUND;
 }
 
 static enum io_error_t getenv_point(const char *name, struct point_2d_t* point) {
-    char *valstr = getenv(name);
+    const char *valstr = getenv(name);
     return valstr ? str_to_point(valstr, point) : ERR_VAR_NOT_FOUND;
 }
 
 static enum io_error_t getenv_str(const char* name, char** val){
-    char *valstr = getenv(name);
+    const char *valstr = getenv(name);
     if (!valstr)
         return ERR_VAR_NOT_FOUND;
     *val = strdup(valstr);
@@ -113,11 +115,11 @@ static enum io_error_t load_map_meta(struct terrain_map_t *map) {
 
 extern enum io_error_t io_load_paths(struct io_filepaths_t* paths){
     enum io_error_t err;
-    if((err = getenv_str("MAPDATA", &paths->mapdata) != ERR_OK)){
+    if((err = getenv_str("MAPDATA", &paths->mapdata)) != ERR_OK){
         fputs("failed to retrieve environment variable MAPDATA\n", stderr);
         return err;
     }
-    if((err = getenv_str("PATHOUT", &paths->pathout) != ERR_OK)){
+    if((err = getenv_str("PATHOUT", &paths->pathout)) != ERR_OK) {
         fputs("failed to retrieve environment variable PATHOUT\n", stderr);
         free(paths->mapdata);
         return err;
@@ -179,8 +181,10 @@ static void* load_extra_out_config(const char* name){
     FILE* f = fopen(name, "w");
     if (!f)
         return NULL;
-    if (fputc('\n', f) == EOF)
+    if (fputc('\n', f) == EOF) {
+        fclose(f);
         return NULL;
+    }
     fclose(f);
     return strdup(name);
 }
@@ -306,7 +310,7 @@ static enum io_error_t write_path(FILE* out, const struct dynarr_t* path){
         return ERR_FILE;
     // Print all x and y values in path to output file
     for (size_t i = 0; i < path->length; i++) {
-        struct point_2d_t *point = dynarr_get(path, i);
+        const struct point_2d_t *point = dynarr_get(path, i);
         fprintf(out, "%f,%f\n", point->x, point->y);
         if (ferror(out))
             return ERR_FILE;
@@ -319,7 +323,7 @@ extern enum io_error_t io_store_path(struct io_filepaths_t* paths, const struct 
     FILE *out_file = fopen(paths->pathout, "w");
     enum io_error_t err;
     if (out_file) {
-        if ((err = write_path(out_file, path) != ERR_OK))
+        if ((err = write_path(out_file, path)) != ERR_OK)
             fprintf(stderr, "write error while storing generated path in file %s\n", paths->pathout);
         if (fclose(out_file) != 0){
             fprintf(stderr, "failed to close file %s\n", paths->pathout);

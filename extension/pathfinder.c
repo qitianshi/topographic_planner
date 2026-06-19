@@ -1,12 +1,13 @@
+#include <assert.h>
+#include <float.h>
+#include <math.h>
+#include <stdio.h>
+
 #include "adt/dynarr.h"
 #include "adt/heap.h"
 #include "adt/bitarr.h"
 #include "map.h"
 #include "pathfinder.h"
-#include <assert.h>
-#include <float.h>
-#include <math.h>
-#include <stdio.h>
 
 #define PF_SQRT_2 1.4142135623730950488016887242097f
 #define PF_COST_INFINITY FLT_MAX
@@ -41,13 +42,17 @@ static int pf_cell_cmp(const void* c1, const void* c2, void* state){
     return cell1->path_len < cell2->path_len ? 1 : -1;
 }
 
-static void pf_cells_queue_str_cell_idx(const void* vcell, size_t idx, void* state){
+static void pf_cells_queue_str_cell_idx(
+    const void *vcell,
+    size_t idx,
+    void *state
+) {
     const struct pf_cell_t *cell = vcell;
     uint32_t *heap_idx = state;
     heap_idx[cell->pos] = (uint32_t)idx + (PF_NOT_IN_HEAP + 1);
 }
 
-static bool pf_cells_tree_contains(struct pf_cells_t *cells, size_t pos) {
+static bool pf_cells_tree_contains(const struct pf_cells_t *cells, size_t pos) {
     return bitarr_get(cells->intree, pos);
 }
 
@@ -213,7 +218,7 @@ static void pf_display_search(
     const struct terrain_map_t* map,
     const struct pf_config_t* config,
     struct pf_cells_t* cells,
-    struct dynarr_t* path
+    const struct dynarr_t* path
 ){
     FILE *out = config ? pf_get_stream(config->extra_out.search_display) : stdout;
     if (!out)
@@ -239,7 +244,7 @@ static void pf_display_search(
     *head++ = '\n';
     if (path) {
         for (size_t i = 0; i < path->length; ++i) {
-            struct point_2d_t *point = dynarr_get(path, i);
+            const struct point_2d_t *point = dynarr_get(path, i);
             uint32_t pos = terrain_map_get_pos(map, *point);
             pos += pos / map->npoints_x;
             buf[pos] = 'O';
@@ -294,7 +299,7 @@ static bool pf_search(
     }
 }
 
-static void pf_reverse_path(struct dynarr_t* path){
+static void pf_reverse_path(const struct dynarr_t* path){
     struct point_2d_t *i = dynarr_get(path, 0);
     struct point_2d_t *j = dynarr_get(path, path->length - 1);
     for (; i < j; ++i, --j){
@@ -336,6 +341,9 @@ static void pf_eval_path(
     const struct pf_cells_t *cells,
     struct dynarr_t *path
 ){
+    if (path->length == 0)
+        return;
+
     FILE* out = config ? pf_get_stream(config->extra_out.path_eval) : stdout;
     if (!out)
         return;
@@ -380,13 +388,13 @@ static void pf_eval_path(
             max_edge_cost = edge_cost;
         }
         prev_pos = pos;
-        fprintf(out, "%6d (%6d, %6d) (%4.1f, %4.1f) (xy=%6.2f, g=%6.2f, c=%7.2f) (wxy=%6.2f, wg=%6.2f. wc=%6.2f) (ec=%6.2f, d=%6.2f, h=%6.2f)\n",
-            (int)pos,
-            (int)coord.x, (int)coord.y,
-            point.x, point.y,
-            xy_dist, grad, cost,
-            wxy_dist, wgrad, wcost,
-            edge_cost, dist, dist_to_dest);
+        fprintf(
+            out,
+            "%6d (%6d, %6d) (%4.1f, %4.1f) (xy=%6.2f, g=%6.2f, c=%7.2f) "
+            "(wxy=%6.2f, wg=%6.2f. wc=%6.2f) (ec=%6.2f, d=%6.2f, h=%6.2f)\n",
+            (int)pos, (int)coord.x, (int)coord.y, point.x, point.y, xy_dist,
+            grad, cost, wxy_dist, wgrad, wcost, edge_cost, dist, dist_to_dest
+        );
     }
     total_dist_from_start /= (float)(path->length);
     total_dist_from_dest /= (float)(path->length);
@@ -397,13 +405,27 @@ static void pf_eval_path(
     twg /= (float)(path->length);
     twc /= (float)(path->length);
 
-    fprintf(out, "min edge cost  : %7.2f (%4.1f, %4.1f)\n", min_edge_cost, min_edge_point.x, min_edge_point.y);
-    fprintf(out, "max edge cost  : %7.2f (%4.1f, %4.1f)\n", max_edge_cost, max_edge_point.x, max_edge_point.y);
+    fprintf(
+        out, "min edge cost  : %7.2f (%4.1f, %4.1f)\n", min_edge_cost,
+        min_edge_point.x, min_edge_point.y
+    );
+    fprintf(
+        out, "max edge cost  : %7.2f (%4.1f, %4.1f)\n", max_edge_cost,
+        max_edge_point.x, max_edge_point.y
+    );
     fprintf(out, "avg dist strt  : %7.2f\n", total_dist_from_start);
     fprintf(out, "avg dist dest  : %7.2f\n", total_dist_from_dest);
-    fprintf(out, "ratio src/dest : %7.2f\n", total_dist_from_start / total_dist_from_dest);
-    fprintf(out, "avg (xy, g, c) : (xy= %6.2f, g= %6.2f, c= %6.2f)\n", txy, tg, tc);
-    fprintf(out, "avg (wxy,wg,wc): (wxy=%6.2f, wg=%6.2f. wc=%6.2f)\n", twxy, twg, twc);
+    fprintf(
+        out, "ratio src/dest : %7.2f\n",
+        total_dist_from_start / total_dist_from_dest
+    );
+    fprintf(
+        out, "avg (xy, g, c) : (xy= %6.2f, g= %6.2f, c= %6.2f)\n", txy, tg, tc
+    );
+    fprintf(
+        out, "avg (wxy,wg,wc): (wxy=%6.2f, wg=%6.2f. wc=%6.2f)\n", twxy, twg,
+        twc
+    );
     if (out != stdout)
         fclose(out);
 }

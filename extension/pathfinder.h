@@ -1,22 +1,27 @@
 #ifndef PATHFINDER_H
 #define PATHFINDER_H
+
 #include <stdbool.h>
 #include "adt/dynarr.h"
 #include "map.h"
 
 
+struct pf_extra_out_t {
+    void *path_eval;
+    void *search_display;
+};
+
+struct pf_weights_t {
+    float wxy_dist;
+    float wgrad;
+    float wcost;
+    float wheuristic;
+    float max_grad;
+};
+
 struct pf_config_t {
-    struct pf_extra_out_t {
-        void *path_eval;
-        void *search_display;
-    } extra_out;
-    struct pf_weights_t {
-        float wxy_dist;
-        float wgrad;
-        float wcost;
-        float wheuristic;
-        float max_grad;
-    } weights;
+    struct pf_extra_out_t extra_out;
+    struct pf_weights_t weights;
     struct point_2d_t start;
     struct point_2d_t dest;
 };
@@ -45,4 +50,6 @@ extern enum pf_result_t pathfinder(
     const struct pf_config_t *config,
     struct dynarr_t *path
 );
+
+
 #endif

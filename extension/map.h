@@ -98,7 +98,7 @@ struct grid_coord_t terrain_map_get_coord(
 
 struct point_2d_t terrain_map_to_point(
     const struct terrain_map_t *map,
-    struct grid_coord_t pos
+    struct grid_coord_t coord
 );
 
 extern bool terrain_map_is_diagonal(

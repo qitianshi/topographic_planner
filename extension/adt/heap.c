@@ -48,10 +48,10 @@ static void heap_fix(struct heap_t *heap, size_t index) {
     size_t length = heap->arr.length;
 
     // Fetches elements safely, NULL if out of bounds
-    void *largest_val = heap_get(heap, largest_idx);     // Initial val
-    void *left_val =
+    const void *largest_val = heap_get(heap, largest_idx);     // Initial val
+    const void *left_val =
         (left_idx < length) ? heap_get(heap, left_idx) : NULL;
-    void *right_val =
+    const void *right_val =
         (right_idx < length) ? heap_get(heap, right_idx) : NULL;
 
     // Compares with left leaf

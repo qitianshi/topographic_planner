@@ -32,22 +32,6 @@ struct pf_cells_t {
     uint32_t dest_pos;
 };
 
-enum {
-    PF_VISUAL_UPDATE_TREE,
-    PF_VISUAL_UPDATE_QUEUE,
-    PF_VISUAL_UPDATE_CHANGE_EDGE
-};
-
-typedef unsigned char pf_visual_update_type_t;
-
-struct pf_visual_update_t {
-    uint32_t pos;
-    uint32_t parent;
-    uint32_t old_parent;
-    pf_visual_update_type_t type;
-};
-
-
 static void pf_visual_init(
     const struct terrain_map_t* map,
     struct pf_extra_out_t* extra_out

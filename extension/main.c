@@ -44,7 +44,8 @@ int main(int argc, char **argv) {
     const enum pf_result_t res = pathfinder(&map, &pf_config, &path);
     if (res == PF_RESULT_FOUND_PATH) {
         printf("pathfinder: %s\n", pf_result_to_str(res));
-        smooth(&map, &path);
+        if (pf_config.smooth)
+            smooth(&map, &path);
         if ((err = io_store_path(&filepaths, &path)) != ERR_OK)
             report_error(err);
         dynarr_free(&path);

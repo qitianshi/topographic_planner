@@ -8,6 +8,7 @@
 struct pf_extra_out_t {
     void *path_eval;
     void *search_display;
+    void *visual; //visualize search
 };
 
 struct pf_weights_t {
@@ -23,6 +24,7 @@ struct pf_config_t {
     struct pf_weights_t weights;
     struct point_2d_t start;
     struct point_2d_t dest;
+    bool smooth;
 };
 
 enum pf_result_t {
@@ -46,7 +48,7 @@ extern const char *pf_result_to_str(enum pf_result_t);
 
 extern enum pf_result_t pathfinder(
     const struct terrain_map_t *map,
-    const struct pf_config_t *config,
+    struct pf_config_t *config,
     struct dynarr_t *path
 );
 

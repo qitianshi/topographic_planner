@@ -71,6 +71,27 @@ static enum io_error_t str_to_point(const char *s, struct point_2d_t *point) {
         return ERR_OK;
 }
 
+static enum io_error_t str_to_bool(const char* s, bool* b){
+    uint32_t val;
+    enum io_error_t err = str_to_uint32(s, &val);
+    if (err != ERR_VAR_FORMAT){
+        *b = val;
+        return ERR_OK;
+    }
+    char cpy[6];
+    int i;
+    for (i = 0; i < 5 && s[i]; ++i)
+        cpy[i] = (char)tolower((unsigned char)s[i]);
+    cpy[i] = '\0';
+    if (i == 4 && !strcmp("true", cpy))
+        *b = true;
+    else if (i == 5 && !strcmp("false", cpy))
+        *b = false;
+    else
+        return ERR_VAR_FORMAT;
+    return ERR_OK;
+}
+
 /* Copy implementation of POSIX strdup */
 static char *pf_strdup(const char *s) {
 
@@ -113,6 +134,11 @@ static enum io_error_t getenv_str(const char *name, char **val) {
         return ERR_VAR_NOT_FOUND;
     *val = pf_strdup(valstr);
     return *val ? ERR_OK : ERR_MEMORY;
+}
+
+static enum io_error_t getenv_bool(const char* name, bool* b){
+    const char* valstr = getenv(name);
+    return valstr? str_to_bool(valstr, b) : ERR_VAR_NOT_FOUND;
 }
 
 /**
@@ -233,6 +259,9 @@ static void *load_extra_out_config(const char *name) {
 static void load_extra_out_configs(struct pf_extra_out_t *extra_out) {
     extra_out->path_eval = load_extra_out_config("PF_EVAL_PATH");
     extra_out->search_display = load_extra_out_config("PF_DISPLAY_SEARCH");
+    char* visualization;
+    getenv_str("PF_VISUALIZE_SEARCH", &visualization);
+    extra_out->visual = visualization;
 }
 
 extern enum io_error_t io_load_pathfinder_config(struct pf_config_t *config) {
@@ -241,6 +270,15 @@ extern enum io_error_t io_load_pathfinder_config(struct pf_config_t *config) {
         return err;
     if ((err = load_weights(&config->weights)) != ERR_OK)
         return err;
+    switch(err = getenv_bool("SMOOTH", &config->smooth)){
+    case ERR_VAR_NOT_FOUND: err = true;
+    case ERR_OK: break;
+    default:
+        fputs("faild to retrieve environment variable SMOOTH\n", stderr);
+        return err;
+    }
+
+
     load_extra_out_configs(&config->extra_out);
     return ERR_OK;
 }

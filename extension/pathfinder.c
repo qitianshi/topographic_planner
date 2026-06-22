@@ -42,9 +42,8 @@ static void pf_visual_init(
     if (out) {
         free(extra_out->visual);
         extra_out->visual = out;
-        size_t npoints = terrain_map_get_npoints(map);
-        fwrite(&npoints, sizeof npoints, 1, out);
-        fwrite(map->data_cost, sizeof * map->data_cost, npoints, out);
+        fwrite(&map->npoints_x, sizeof map->npoints_x, 1, out);
+        fwrite(&map->npoints_y, sizeof map->npoints_y, 1, out);
     }
     else {
         fprintf(stderr, "failed to open visualize search file %s\n", (char*)extra_out->visual);

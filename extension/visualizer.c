@@ -136,13 +136,13 @@ int main(int argc, char** argv){
         return EXIT_FAILURE;
     }
 
-    GLsizei tex_width = ceil2(width);
-    GLsizei tex_height = ceil2(height);
-    
+    GLsizei twidth = ceil2(width);
+    GLsizei theight = ceil2(height);
 
-    GLuint tex_name;
-    glGenTextures(1, &tex_name);
-    glBindTexture(GL_TEXTURE_2D, tex_name);
+
+    GLuint tname;
+    glGenTextures(1, &tname);
+    glBindTexture(GL_TEXTURE_2D, tname);
     glTexParameteri(GL_TEXURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);

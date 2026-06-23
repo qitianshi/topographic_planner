@@ -5,7 +5,7 @@ CFLAGS  ?= -std=c99 -g \
 	-Wall -Werror -Wpedantic -Wshadow -Wconversion
 BUILD_DIR = ../.build
 
-SRCFILES_VISUALIZER = visualizer.c
+SRCFILES_VISUALIZER = visualizer.o io.c map.c pathfinder.c adt/dynarr.c adt/heap.c adt/bitarr.c smooth.c
 OBJFILES_VISUALIZER = $(SRCFILES_VISUALIZER:%.c=$(BUILD_DIR)/%.o)
 SRCFILES = io.c map.c main.c pathfinder.c adt/dynarr.c adt/heap.c adt/bitarr.c smooth.c
 OBJFILES = $(SRCFILES:%.c=$(BUILD_DIR)/%.o)

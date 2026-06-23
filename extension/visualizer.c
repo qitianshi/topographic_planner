@@ -1,19 +1,21 @@
-#include "pathfinder.h"
 #include <stdlib.h>
 #include <X11/Xlib.h>
-#include "GL/gl.h"
-#include "GL/glx.h"
-#include <unistd.h>
+#include <GL/gl.h>
+#include <GL/glx.h>
 #include <inttypes.h>
-
+#include <errno.h>
 #include <stdio.h>
-
+#include <unistd.h>
+#include "pathfinder.h"
+#include "io.h"
+#include "smooth.h"
 
 #define COLOR_QUEUE (GLubyte[3]){UINT8_MAX, UINT8_MAX, 0}
 #define COLOR_TREE (GLubyte[3]){0, UINT8_MAX, 0}
 #define COLOR_WHITE (GLubyte[3]){UINT8_MAX, UINT8_MAX, UINT8_MAX}
 #define PATTERN_WHOLE 0xffff
 #define PATTERN_BROKEN 0xf00f
+#define COLOR_PATH (GLubyte[3]){UINT8_MAX, 0, UINT8_MAX}
 
 #define COLOR_COST_LOW (GLubyte[3]){ 0, 0, 81 }
 #define COLOR_COST_MID COLOR_WHITE
@@ -59,11 +61,11 @@ void check_error(int line){
     }
 }
 
-GLubyte lerp(GLubyte x, GLubyte y, uint8_t scale, uint8_t max) {
+static GLubyte lerp(GLubyte x, GLubyte y, uint8_t scale, uint8_t max) {
     return (GLubyte)(x + (y - x) * scale / max);
 }
 
-void interpol(GLubyte c1[3], GLubyte c2[3], GLubyte res[3], uint8_t scale, uint8_t max) {
+static void interpol(GLubyte c1[3], GLubyte c2[3], GLubyte res[3], uint8_t scale, uint8_t max) {
     res[0] = lerp(c1[0], c2[0], scale, max);
     res[1] = lerp(c1[1], c2[1], scale, max);
     res[2] = lerp(c1[2], c2[2], scale, max);
@@ -71,19 +73,18 @@ void interpol(GLubyte c1[3], GLubyte c2[3], GLubyte res[3], uint8_t scale, uint8
 
 #define ce check_error(__LINE__);
 
-void specify_vertex(uint32_t pos, uint32_t width){
-    printf("vertex: (%d, %d)\n", (GLint)(pos % width), (GLint)(pos / width));
+static void specify_vertex(uint32_t pos, uint32_t width){
     glVertex2i((GLint)(pos % width), (GLint)(pos / width));
 }
 
-void draw_point(uint32_t pos, uint32_t width, GLubyte color[3]) {
+static void draw_point(uint32_t pos, uint32_t width, GLubyte color[3]) {
     glColor3ubv(color); ce;
     glBegin(GL_POINTS);
     specify_vertex(pos, width);
     glEnd(); ce;
 }
 
-void draw_line(uint32_t src, uint32_t dst, uint32_t width, GLushort pattern, GLubyte color[3]){
+static void draw_line(uint32_t src, uint32_t dst, uint32_t width, GLushort pattern, GLubyte color[3]){
     glLineStipple(1, pattern); ce;
     glColor3ubv(color); ce;
     glBegin(GL_LINES);
@@ -92,32 +93,68 @@ void draw_line(uint32_t src, uint32_t dst, uint32_t width, GLushort pattern, GLu
     glEnd(); ce;
 }
 
-void draw_tree_line(uint32_t src, uint32_t dst, uint32_t width){
-    draw_line(src, dst, width, PATTERN_WHOLE, COLOR_TREE);
-}
-
-void draw_queue_line(uint32_t src, uint32_t dst, uint32_t width) {
-    draw_line(src, dst, width, PATTERN_BROKEN, COLOR_QUEUE);
-}
-
-void erase_line(uint32_t src, uint32_t dst, uint32_t width) {
-    glEnable(GL_TEXTURE_2D); ce;
-    draw_line(src, dst, width, PATTERN_WHOLE, COLOR_WHITE);
+static void draw_map(uint32_t width, uint32_t height){
+    glEnable(GL_TEXTURE_2D);
+    glColor3ubv(COLOR_WHITE);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBegin(GL_QUADS);
+    glTexCoord2i(0, (GLint)height);            glVertex2f(-0.5f, (GLfloat)height + 0.5f);
+    glTexCoord2i((GLint)width, (GLint)height); glVertex2f((GLfloat)width + 0.5f, (GLfloat)height + 0.5f);
+    glTexCoord2i((GLint)width, 0);             glVertex2f((GLfloat)width + 0.5f, -0.5f);
+    glTexCoord2i(0, 0);                        glVertex2f(-0.5f, -0.5f);
+    glEnd(); ce;
     glDisable(GL_TEXTURE_2D); ce;
 }
 
-void draw_queue_point(uint32_t pos, uint32_t width) {
-    draw_point(pos, width, COLOR_QUEUE);
+static void draw_path(const struct terrain_map_t* map, const struct dynarr_t* path, GLubyte color[3]){
+    glColor3ubv(color);
+    glBegin(GL_LINE_STRIP);
+    for (size_t i = 0; i < path->length; ++i){
+        struct point_2d_t point = *(struct point_2d_t*)dynarr_get(path, i);
+        point.x /= map->resolution;
+        point.y /= map->resolution;
+        glVertex2f(point.x, point.y);
+        //draw_line(prev_pos, pos, map->npoints_x, PATTERN_WHOLE, COLOR_PATH);
+    }
+    glEnd(); ce;
 }
 
-void draw_tree_point(uint32_t pos, uint32_t width) {
-    draw_point(pos, width, COLOR_TREE);
+static void erase_path(const struct terrain_map_t* map, const struct dynarr_t* path) {
+    glEnable(GL_TEXTURE_2D); ce;
+    draw_path(map, path, COLOR_WHITE);
+    glDisable(GL_TEXTURE_2D);
 }
+
 
 int main(int argc, char** argv){
+    enum io_error_t err;
+
+    uint32_t smooth_steps;
+    io_load_smooth_steps(&smooth_steps);
+
+    struct terrain_map_t map;
+    if ((err = io_load_map(&map)) != ERR_OK){
+        fprintf(stderr, "failed to read map: %s (%d)\n", io_err_to_str(err), (int)err);
+        return EXIT_FAILURE;
+    }
+
+    uint32_t stepsize;
+    if ((err = getenv_uint32("VIS_STEP_SIZE", &stepsize)) != ERR_OK){
+        if (err != ERR_VAR_NOT_FOUND){
+            fprintf(stderr, "failed to read VIS_STEP_SIZE environment variable: %s (%d)\n", io_err_to_str(err), (int)err);
+            return EXIT_FAILURE;
+        } else if (argc > 2 && (err = str_to_uint32(argv[2], &stepsize)) != ERR_OK){
+            fprintf(stderr, "failed to read stepsize command line argument: %s (%d)", io_err_to_str(err), (int)err);
+            return EXIT_FAILURE;
+        } else {
+            stepsize = 50;
+        }
+    }
+    printf("stepsize = %d\n", (int)stepsize);
+
     const char* visualfile = argv[1] ? argv[1] : getenv("PF_VISUALIZE_SEARCH");
-    if (visualfile == NULL){
-        fputs("visualizer: expected at least one command line argument or environment variable PF_VISUALIZE_SEARCH\n", stderr);
+    if (!visualfile){
+        fputs("expected at least one command line argument or environment variable PF_VISUALIZE_SEARCH\n", stderr);
         return EXIT_FAILURE;
     }
 
@@ -215,14 +252,6 @@ int main(int argc, char** argv){
     }
 
     uint32_t width, height, start, dest;
-    if (fread(&width, sizeof width, 1, in) != 1){
-        fputs("failed to read width\n", stderr);
-        return EXIT_FAILURE;
-    }
-    if (fread(&height, sizeof height, 1, in) != 1) {
-        fputs("failed to read height\n", stderr);
-        return EXIT_FAILURE;
-    }
     if (fread(&start, sizeof start, 1, in) != 1) {
         fputs("failed to read start\n", stderr);
         return EXIT_FAILURE;
@@ -231,26 +260,23 @@ int main(int argc, char** argv){
         fputs("failed to read dest\n", stderr);
         return EXIT_FAILURE;
     }
-    uint8_t* costs = malloc(width * height);
-    if (!costs){
-        fputs("failed to allocate costs array\n", stderr);
-        return EXIT_FAILURE;
-    }
-    if (fread(costs, sizeof *costs, width * height, in) != width * height){
-        fputs("failed to read costs array\n", stderr);
-        return EXIT_FAILURE;
-    }
+    width = map.npoints_x;
+    height = map.npoints_y;
 
     GLsizei twidth = (GLsizei)ceil2(width);
     GLsizei theight = (GLsizei)ceil2(height);
     GLubyte* tdata = calloc((size_t)twidth * (size_t)theight, NCOLORCOMP * sizeof * tdata);
+    if (!tdata){
+        fputs("failed to allocate texture data\n", stderr);
+        return EXIT_FAILURE;
+    }
 
     for (uint32_t y = 0, i = 0, j = 0;
         y < height;
         ++y, j += NCOLORCOMP * ((uint32_t)twidth - width))
     {
         for (uint32_t x = 0; x < width; ++x, ++i, j += NCOLORCOMP) {
-            uint8_t cost = costs[i];
+            uint8_t cost = map.data_cost[i];
             if (cost <= INT8_MAX){
                 interpol(COLOR_COST_LOW, COLOR_COST_MID, tdata + j, cost, INT8_MAX);
             } else {
@@ -258,7 +284,6 @@ int main(int argc, char** argv){
             }
         }
     }
-    free(costs);
 
     GLuint tname;
     glGenTextures(1, &tname); ce;
@@ -272,87 +297,90 @@ int main(int argc, char** argv){
 
     glMatrixMode(GL_TEXTURE); ce;
     glScalef(1.0f / (GLfloat)twidth, 1.0f / (GLfloat)theight, 1); ce;
-
-
-    glEnable(GL_TEXTURE_2D);
-    glBegin(GL_QUADS);
-    glTexCoord2i(0, (GLint)height);            glVertex2f(-1, 1);
-    glTexCoord2i((GLint)width, (GLint)height); glVertex2f(1, 1);
-    glTexCoord2i((GLint)width, 0);             glVertex2f(1, -1);
-    glTexCoord2i(0, 0);                        glVertex2f(-1, -1);
-    glEnd(); ce;
-    glFlush(); ce;
-    glDisable(GL_TEXTURE_2D); ce;
-
     glTranslatef(0.5f, 0.5f, 0); ce;
-    glOrtho(0, (GLfloat)width, 0, (GLfloat)height, 1, -1); ce;
 
-    //glEnable GL_TEXTURE_GEN_S, GL_TEXTURE_GEN_T, GL_TEXTURE_GEN_R, or GL_TEXTURE_GEN_Q
-    //glTexGen
     glMatrixMode(GL_MODELVIEW); ce;
     glTranslatef(0.5f, 0.5f, 0); ce;
-    //glTranslatef(0.5f, (GLfloat)height - 1.5f, 0); ce;
-    //glScalef(1, -1, 1);
 
     glMatrixMode(GL_PROJECTION); ce;
     glOrtho(0, (GLfloat)width, 0, (GLfloat)height, 1, -1); ce;
 
+    draw_map(width, height);
+    glFlush(); ce;
+    //glOrtho(0, (GLfloat)width, 0, (GLfloat)height, 1, -1); ce;
+
     glEnable(GL_TEXTURE_GEN_S); ce;
     glEnable(GL_TEXTURE_GEN_T); ce;
-    //glLineWidth(2); ce;
-    //sglPointSize(2); ce;
+    glEnable(GL_LINE_STIPPLE);
 
+    uint32_t* parents = calloc(width * height, sizeof *parents);
+    if (!parents){
+        fputs("failed to allocate parents array\n", stderr);
+        return EXIT_FAILURE;
+    }
 
-    for(bool more_updates = true; more_updates;){
+    for(uint32_t more_updates = true, i = 0; more_updates; ++i){
         struct pf_visual_update_t update;
         if (fread(&update, sizeof update, 1, in) != 1){
             fputs("failed to read update\n", stderr);
             return EXIT_FAILURE;
         }
-        printf("update %d pos=%5"PRIu32", par=%5"PRIu32", old = %5"PRIu32"\n",
-            (int)update.type, update.pos, update.parent, update.old_parent);
         switch(update.type){
             case PF_VISUAL_UPDATE_TREE:
-                draw_tree_line(update.pos, update.parent, width);
-                draw_tree_point(update.pos, width);
+                draw_line(update.pos, update.parent, width, PATTERN_WHOLE, COLOR_TREE);
+                draw_point(update.pos, width, COLOR_TREE);
                 break;
             case PF_VISUAL_UPDATE_QUEUE:
-                draw_queue_line(update.pos, update.parent, width);
-                draw_queue_point(update.pos, width);
+                parents[update.pos] = update.parent;
+                draw_line(update.pos, update.parent, width, PATTERN_BROKEN, COLOR_QUEUE);
+                draw_point(update.pos, width, COLOR_QUEUE);
                 break;
             case PF_VISUAL_UPDATE_CHANGE_EDGE:
-                erase_line(update.pos, update.old_parent, width);
-                draw_queue_line(update.pos, update.parent, width);
+                parents[update.pos] = update.parent;
+                glEnable(GL_TEXTURE_2D); ce;
+                draw_line(update.pos, update.old_parent, width, PATTERN_WHOLE, COLOR_WHITE);
+                glDisable(GL_TEXTURE_2D); ce;
+                draw_line(update.pos, update.parent, width, PATTERN_BROKEN, COLOR_QUEUE);
                 break;
             case PF_VISUAL_UPDATE_FINISHED:
                 more_updates = false;
                 break;
         }
-        glFlush();
+        if (i % stepsize == 0)
+            glFlush();
     }
+    glFlush();
+    glDisable(GL_LINE_STIPPLE);
+
+
+    struct dynarr_t path;
+    pf_create_path(&map, start, dest, parents, &path);
+
+    glLineWidth(2.0f);
+    draw_path(&map, &path, COLOR_PATH);
+    glFlush(); ce;
+    usleep(200000);
+
+    draw_map(width, height);
+    draw_path(&map, &path, COLOR_PATH);
+    glFlush(); ce;
+    usleep(200000);
+
+    for (uint32_t i = 0; i < smooth_steps; ++i){
+        erase_path(&map, &path);
+        smooth_step(&map, &path);
+        draw_path(&map, &path, COLOR_PATH);
+        glFlush(); ce;
+        usleep(200000);
+    }
+
+    puts("Finished. Press Any Key To Continue");
     getc(stdin);
 
+    dynarr_free(&path);
+    free(parents);
+    terrain_map_free(&map);
+    fclose(in);
+    XFree(vis);
     XCloseDisplay(display);
-
-    //XNextEvents
-    //XMapWindow
-    //XCreateWindow
-
-    // XDefaultDepth(
-    //XDefaultGC
-    //Window XDefaultRootWindow( *display);
-    //int XDefaultScreen(Display *display);
-    //Screen *XScreenOfDisplay(Display *display, int screen_number);
-    //int XDisplayPlanes( *display,  screen_number)
-    //unsigned long XNextRequest( *display);
-    //int XQLength( *display);
-    //int XScreenCount( *display);
-    //char *XServerVendor( *display);
-    //int XVendorRelease( *display)
-    //int XDisplayHeight(Display *display, int screen_number);
-    //int XDisplayHeightMM(Display *display, int screen_number);
-    //int XWidthOfScreen(Screen * screen);
-    //int XHeightOfScreen(Screen * screen);
-    //XFree(void* data);
-    //XInitThreads
 }

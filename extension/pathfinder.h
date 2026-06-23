@@ -24,7 +24,6 @@ struct pf_config_t {
     struct pf_weights_t weights;
     struct point_2d_t start;
     struct point_2d_t dest;
-    bool smooth;
 };
 
 enum pf_result_t {
@@ -67,5 +66,12 @@ extern enum pf_result_t pathfinder(
     struct dynarr_t *path
 );
 
+extern bool pf_create_path(
+    const struct terrain_map_t* map,
+    uint32_t start_pos,
+    uint32_t dest_pos,
+    uint32_t* parents,
+    struct dynarr_t* path
+);
 
 #endif

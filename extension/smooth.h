@@ -6,8 +6,10 @@
 
 #include <stdbool.h>
 
-#define SMOOTH_STEPS 10
+#define SMOOTH_STEPS_DEFAULT 10
 
-void smooth(const struct terrain_map_t *map, const struct dynarr_t *path);
+void smooth_step(const struct terrain_map_t* map, const struct dynarr_t* path);
+
+void smooth(const struct terrain_map_t *map, uint32_t steps, const struct dynarr_t *path);
 
 #endif // SMOOTH_H

@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "smooth.h"
 
 #include "io.h"
 #include "pathfinder.h"
@@ -34,7 +35,7 @@ extern const char *io_err_to_str(enum io_error_t err) {
     return err_msg[err];
 }
 
-static enum io_error_t str_to_uint32(const char *s, uint32_t *val) {
+extern enum io_error_t str_to_uint32(const char *s, uint32_t *val) {
     errno = 0;
     unsigned long ulong_val;
     char *end;
@@ -110,7 +111,7 @@ static char *pf_strdup(const char *s) {
 }
 
 
-static enum io_error_t getenv_uint32(const char *name, uint32_t *val) {
+extern enum io_error_t getenv_uint32(const char *name, uint32_t *val) {
     const char *valstr = getenv(name);
     return valstr ? str_to_uint32(valstr, val) : ERR_VAR_NOT_FOUND;
 }
@@ -136,7 +137,8 @@ static enum io_error_t getenv_str(const char *name, char **val) {
     return *val ? ERR_OK : ERR_MEMORY;
 }
 
-static enum io_error_t getenv_bool(const char* name, bool* b){
+
+extern enum io_error_t getenv_bool(const char* name, bool* b){
     const char* valstr = getenv(name);
     return valstr? str_to_bool(valstr, b) : ERR_VAR_NOT_FOUND;
 }
@@ -161,25 +163,6 @@ static enum io_error_t load_map_meta(struct terrain_map_t *map) {
         return err;
     }
     return ERR_OK;
-}
-
-extern enum io_error_t io_load_paths(struct io_filepaths_t *paths) {
-    enum io_error_t err;
-    if ((err = getenv_str("MAPDATA", &paths->mapdata)) != ERR_OK) {
-        fputs("failed to retrieve environment variable MAPDATA\n", stderr);
-        return err;
-    }
-    if ((err = getenv_str("PATHOUT", &paths->pathout)) != ERR_OK) {
-        fputs("failed to retrieve environment variable PATHOUT\n", stderr);
-        free(paths->mapdata);
-        return err;
-    }
-    return ERR_OK;
-}
-
-extern void io_free_paths(struct io_filepaths_t *paths) {
-    free(paths->mapdata);
-    free(paths->pathout);
 }
 
 static enum io_error_t load_start_dest(
@@ -270,17 +253,13 @@ extern enum io_error_t io_load_pathfinder_config(struct pf_config_t *config) {
         return err;
     if ((err = load_weights(&config->weights)) != ERR_OK)
         return err;
-    switch(err = getenv_bool("SMOOTH", &config->smooth)){
-    case ERR_VAR_NOT_FOUND: err = true;
-    case ERR_OK: break;
-    default:
-        fputs("faild to retrieve environment variable SMOOTH\n", stderr);
-        return err;
-    }
-
-
     load_extra_out_configs(&config->extra_out);
     return ERR_OK;
+}
+
+extern void io_load_smooth_steps(uint32_t* smooth_steps){
+    if (getenv_uint32("SMOOTH_STEPS", smooth_steps) != ERR_OK)
+        *smooth_steps = SMOOTH_STEPS_DEFAULT;
 }
 
 /**
@@ -357,12 +336,11 @@ static enum io_error_t load_map_data(
 
 // Load data from input files to out
 extern enum io_error_t io_load_map(
-    struct io_filepaths_t *paths,
     struct terrain_map_t *map
 ) {
-    // Must set metadata values of out before data values
     enum io_error_t err;
     while (true) {
+        // Must set metadata values of out before data values
         if ((err = load_map_meta(map)) != ERR_OK)
             break;
         if (!terrain_map_alloc(map)) {
@@ -370,16 +348,18 @@ extern enum io_error_t io_load_map(
             err = ERR_MEMORY;
             break;
         }
-        if ((err = load_map_data(paths->mapdata, map)) != ERR_OK) {
+        const char* mapdata = getenv("MAPDATA");
+        if (!mapdata){
+            fputs("failed to retrieve environment variable MAPDATA\n", stderr);
+            err = ERR_VAR_NOT_FOUND;
+            break;
+        }
+        if ((err = load_map_data(mapdata, map)) != ERR_OK) {
             terrain_map_free(map);
-            fprintf(
-                stderr, "failed to load map data from %s\n", paths->mapdata
-            );
+            fprintf(stderr, "failed to load map data from %s\n", mapdata);
         }
         break;
     }
-    free(paths->mapdata);
-    paths->mapdata = NULL;
     return err;
 }
 
@@ -400,26 +380,28 @@ static enum io_error_t write_path(FILE *out, const struct dynarr_t *path) {
 
 // Store data from out into csv output file
 extern enum io_error_t io_store_path(
-    struct io_filepaths_t *paths,
     const struct dynarr_t *path
 ) {
-    FILE *out_file = fopen(paths->pathout, "w");
+    const char* pathout = getenv("PATHOUT");
+    if (!pathout){
+        fputs("failed to retrieve environment variable PATHOUT\n", stderr);
+        return ERR_VAR_NOT_FOUND;
+    }
+    FILE *out_file = fopen(pathout, "w");
     enum io_error_t err;
     if (out_file) {
         if ((err = write_path(out_file, path)) != ERR_OK)
             fprintf(
                 stderr, "write error while storing generated path in file %s\n",
-                paths->pathout
+                pathout
             );
         if (fclose(out_file) != 0) {
-            fprintf(stderr, "failed to close file %s\n", paths->pathout);
+            fprintf(stderr, "failed to close file %s\n", pathout);
             err = ERR_FILE;
         }
     } else {
-        fprintf(stderr, "failed to open path output file %s\n", paths->pathout);
+        fprintf(stderr, "failed to open path output file %s\n", pathout);
         err = ERR_FILE;
     }
-    free(paths->pathout);
-    paths->pathout = NULL;
     return err;
 }

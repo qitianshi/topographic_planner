@@ -87,7 +87,6 @@ static void pf_visual_update_finished(
 }
 
 static void pf_visual_init(
-    const struct terrain_map_t* map,
     struct pf_extra_out_t* extra_out,
     struct pf_cells_t* cells
 ) {
@@ -97,11 +96,8 @@ static void pf_visual_init(
     if (out) {
         free(extra_out->visual);
         extra_out->visual = out;
-        fwrite(&map->npoints_x, sizeof map->npoints_x, 1, out);
-        fwrite(&map->npoints_y, sizeof map->npoints_y, 1, out);
         fwrite(&cells->start_pos, sizeof cells->start_pos, 1, out);
         fwrite(&cells->dest_pos, sizeof cells->dest_pos, 1, out);
-        fwrite(map->data_cost, sizeof * map->data_cost, terrain_map_get_npoints(map), out);
     }
     else {
         fprintf(stderr, "failed to open visualize search file %s\n", (char*)extra_out->visual);
@@ -449,16 +445,18 @@ static void pf_reverse_path(const struct dynarr_t *path) {
     }
 }
 
-static bool pf_create_path(
-    const struct terrain_map_t *map,
-    const struct pf_cells_t *cells,
-    struct dynarr_t *path
-) {
+extern bool pf_create_path(
+    const struct terrain_map_t* map,
+    uint32_t start_pos,
+    uint32_t dest_pos,
+    uint32_t* parents,
+    struct dynarr_t* path
+){
     if (!dynarr_make(path, sizeof(struct point_2d_t), PF_PATH_INITIAL_CAPACITY))
         return false;
-    cells->parents[cells->start_pos] = UINT32_MAX;
-    for (uint32_t cur_pos = cells->dest_pos; cur_pos != UINT32_MAX;
-         cur_pos = cells->parents[cur_pos]) {
+    parents[start_pos] = UINT32_MAX;
+    for (uint32_t cur_pos = dest_pos; cur_pos != UINT32_MAX;
+        cur_pos = parents[cur_pos]) {
         struct grid_coord_t coord = terrain_map_get_coord(map, cur_pos);
         struct point_2d_t point = terrain_map_to_point(map, coord);
         if (!dynarr_append(path, &point)) {
@@ -469,6 +467,14 @@ static bool pf_create_path(
 
     pf_reverse_path(path);
     return true;
+}
+
+static bool pf_cells_create_path(
+    const struct terrain_map_t *map,
+    const struct pf_cells_t *cells,
+    struct dynarr_t *path
+) {
+    return pf_create_path(map, cells->start_pos, cells->dest_pos, cells->parents, path);
 }
 
 static void pf_eval_path(
@@ -582,14 +588,14 @@ enum pf_result_t pathfinder(
         pf_cells_free(&cells);
         return PF_RESULT_ERR_MEM;
     }
-    pf_visual_init(map, &config->extra_out, &cells);
+    pf_visual_init(&config->extra_out, &cells);
 
     if (!pf_search(map, config, &cells)) {
         pf_cells_free(&cells);
         pf_visual_shutdown(&config->extra_out);
         return PF_RESULT_NO_PATH;
     }
-    if (!pf_create_path(map, &cells, path)) {
+    if (!pf_cells_create_path(map, &cells, path)) {
         pf_cells_free(&cells);
         pf_visual_shutdown(&config->extra_out);
         return PF_RESULT_ERR_MEM;

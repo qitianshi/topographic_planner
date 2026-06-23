@@ -19,34 +19,26 @@ int main(int argc, char **argv) {
 
     struct pf_config_t pf_config;
     struct terrain_map_t map;
-    struct io_filepaths_t filepaths;
     struct dynarr_t path;
-
+    uint32_t smooth_steps;
     enum io_error_t err;
 
-    if ((err = io_load_paths(&filepaths)) != ERR_OK) {
-        report_error(err);
-        return EXIT_FAILURE;
-    }
-
+    io_load_smooth_steps(&smooth_steps);
     if ((err = io_load_pathfinder_config(&pf_config)) != ERR_OK) {
         report_error(err);
-        io_free_paths(&filepaths);
         return EXIT_FAILURE;
     }
 
-    if ((err = io_load_map(&filepaths, &map)) != ERR_OK) {
+    if ((err = io_load_map(&map)) != ERR_OK) {
         report_error(err);
-        io_free_paths(&filepaths);
         return EXIT_FAILURE;
     }
 
     const enum pf_result_t res = pathfinder(&map, &pf_config, &path);
     if (res == PF_RESULT_FOUND_PATH) {
         printf("pathfinder: %s\n", pf_result_to_str(res));
-        if (pf_config.smooth)
-            smooth(&map, &path);
-        if ((err = io_store_path(&filepaths, &path)) != ERR_OK)
+        smooth(&map, smooth_steps, &path);
+        if ((err = io_store_path(&path)) != ERR_OK)
             report_error(err);
         dynarr_free(&path);
     } else {

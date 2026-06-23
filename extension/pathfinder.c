@@ -32,36 +32,6 @@ struct pf_cells_t {
     uint32_t dest_pos;
 };
 
-static void pf_visual_init(
-    const struct terrain_map_t* map,
-    struct pf_extra_out_t* extra_out
-) {
-    if (!extra_out->visual)
-        return;
-    FILE* out = fopen(extra_out->visual, "wb");
-    if (out) {
-        free(extra_out->visual);
-        extra_out->visual = out;
-        fwrite(&map->npoints_x, sizeof map->npoints_x, 1, out);
-        fwrite(&map->npoints_y, sizeof map->npoints_y, 1, out);
-    }
-    else {
-        fprintf(stderr, "failed to open visualize search file %s\n", (char*)extra_out->visual);
-        free(extra_out->visual);
-        extra_out->visual = NULL;
-    }
-}
-
-static void pf_visual_shutdown(
-   struct pf_extra_out_t* out
-){
-    if (!out->visual) return;
-    if (ferror(out->visual))
-        fputs("Write error occured in visual output file\n", stderr);
-    if (fclose(out->visual))
-        fputs("Failed to close visual output file\n", stderr);
-}
-
 static void pf_visual_update_change_edge(
     const struct pf_extra_out_t* out,
     uint32_t cur_pos,
@@ -104,6 +74,51 @@ static void pf_visual_update_tree(
         .parent = cur_pos
     };
     fwrite(&update, sizeof update, 1, out->visual);
+}
+
+static void pf_visual_update_finished(
+    const struct pf_extra_out_t* out
+) {
+    if (!out->visual) return;
+    struct pf_visual_update_t update = {
+        .type = PF_VISUAL_UPDATE_FINISHED
+    };
+    fwrite(&update, sizeof update, 1, out->visual);
+}
+
+static void pf_visual_init(
+    const struct terrain_map_t* map,
+    struct pf_extra_out_t* extra_out,
+    struct pf_cells_t* cells
+) {
+    if (!extra_out->visual)
+        return;
+    FILE* out = fopen(extra_out->visual, "wb");
+    if (out) {
+        free(extra_out->visual);
+        extra_out->visual = out;
+        fwrite(&map->npoints_x, sizeof map->npoints_x, 1, out);
+        fwrite(&map->npoints_y, sizeof map->npoints_y, 1, out);
+        fwrite(&cells->start_pos, sizeof cells->start_pos, 1, out);
+        fwrite(&cells->dest_pos, sizeof cells->dest_pos, 1, out);
+        fwrite(map->data_cost, sizeof * map->data_cost, terrain_map_get_npoints(map), out);
+    }
+    else {
+        fprintf(stderr, "failed to open visualize search file %s\n", (char*)extra_out->visual);
+        free(extra_out->visual);
+        extra_out->visual = NULL;
+    }
+}
+
+static void pf_visual_shutdown(
+   struct pf_extra_out_t* out
+){
+    if (!out->visual) return;
+    pf_visual_update_finished(out);
+    if (ferror((FILE*)out->visual))
+        fputs("Write error occured in visual output file\n", stderr);
+    if (fclose(out->visual))
+        fputs("Failed to close visual output file\n", stderr);
 }
 
 /*
@@ -567,7 +582,7 @@ enum pf_result_t pathfinder(
         pf_cells_free(&cells);
         return PF_RESULT_ERR_MEM;
     }
-    pf_visual_init(map, &config->extra_out);
+    pf_visual_init(map, &config->extra_out, &cells);
 
     if (!pf_search(map, config, &cells)) {
         pf_cells_free(&cells);

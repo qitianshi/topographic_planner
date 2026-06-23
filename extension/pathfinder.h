@@ -36,7 +36,8 @@ enum pf_result_t {
 enum {
     PF_VISUAL_UPDATE_TREE,
     PF_VISUAL_UPDATE_QUEUE,
-    PF_VISUAL_UPDATE_CHANGE_EDGE
+    PF_VISUAL_UPDATE_CHANGE_EDGE,
+    PF_VISUAL_UPDATE_FINISHED
 };
 
 typedef unsigned char pf_visual_update_type_t;

@@ -243,8 +243,10 @@ static void load_extra_out_configs(struct pf_extra_out_t *extra_out) {
     extra_out->path_eval = load_extra_out_config("PF_EVAL_PATH");
     extra_out->search_display = load_extra_out_config("PF_DISPLAY_SEARCH");
     char* visualization;
-    getenv_str("PF_VISUALIZE_SEARCH", &visualization);
-    extra_out->visual = visualization;
+    if (getenv_str("PF_VISUALIZE_SEARCH", &visualization) == ERR_OK)
+        extra_out->visual = visualization;
+    else
+        extra_out->visual = NULL;
 }
 
 extern enum io_error_t io_load_pathfinder_config(struct pf_config_t *config) {

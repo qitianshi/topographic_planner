@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <X11/Xlib.h>
+#include <X11/Xatom.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
 #include <inttypes.h>
@@ -16,11 +17,29 @@
 #define PATTERN_WHOLE 0xffff
 #define PATTERN_BROKEN 0xf00f
 #define COLOR_PATH (GLubyte[3]){UINT8_MAX, 0, UINT8_MAX}
+#define COLOR_PATH_FINAL (GLubyte[3]){0, UINT8_MAX, UINT8_MAX}
+#define TIME_DELAY 100000
 
 #define COLOR_COST_LOW (GLubyte[3]){ 0, 0, 81 }
 #define COLOR_COST_MID COLOR_WHITE
 #define COLOR_COST_HIGH (GLubyte[3]){ 81, 0, 0 }
 #define NCOLORCOMP 3
+
+/*
+#define PROMPT_TWIDTH 64
+#define PROMPT_WIDTH 55
+#define PROMPT_THEIGHT 8
+#define PROMPT_HEIGHT 5
+#define A UINT8_MAX
+
+static GLuByte prompt[] = {
+A,A,A,A,0,0,A,0,0,A,0,A,A,A,A,A,0,A,A,A,A,0,A,A,A,A,0,0,0,0,0,0,A,A,A,A,0,0,0,0,0,A,0,A,A,0,A,A,A,A,0,A,0,0,A,0,0,0,0,0,0,0,0,0,
+A,0,0,0,0,0,A,A,0,A,0,0,0,A,0,0,0,A,0,0,0,0,A,0,0,A,0,0,0,0,0,0,A,0,0,A,0,0,0,0,0,A,A,A,0,0,A,0,0,0,0,A,0,0,A,0,0,0,0,0,0,0,0,0,
+A,A,A,A,0,0,A,0,A,A,0,0,0,A,0,0,0,A,A,A,A,0,A,A,A,0,0,0,0,0,0,0,A,A,A,A,0,0,0,0,0,A,A,0,0,0,A,A,A,A,0,A,A,A,A,0,0,0,0,0,0,0,0,0,
+A,0,0,0,0,0,A,0,A,A,0,0,0,A,0,0,0,A,0,0,0,0,A,0,0,A,0,0,0,0,0,0,A,0,0,A,0,0,0,0,0,A,A,A,0,0,A,0,0,0,0,0,0,0,A,0,0,0,0,0,0,0,0,0,
+A,A,A,A,0,0,A,0,0,A,0,0,0,A,0,0,0,A,A,A,A,0,A,0,0,0,A,0,0,0,0,0,A,0,0,A,0,0,0,0,0,A,0,A,A,0,A,A,A,A,0,A,A,A,A,0,0,0,0,0,0,0,0,0}
+#undef A
+*/
 
 uint32_t ceil2(uint32_t v){
     --v;
@@ -119,12 +138,13 @@ static void draw_path(const struct terrain_map_t* map, const struct dynarr_t* pa
     glEnd(); ce;
 }
 
-static void erase_path(const struct terrain_map_t* map, const struct dynarr_t* path) {
-    glEnable(GL_TEXTURE_2D); ce;
-    draw_path(map, path, COLOR_WHITE);
-    glDisable(GL_TEXTURE_2D);
+static void wait_for_keypress(Display* display, Window win){
+    XEvent event;
+    for (int i = XPending(display); i; --i)
+        XNextEvent(display, &event);
+    puts("Press Any Key To Continue");
+    XWindowEvent(display, win, KeyPressMask, &event);
 }
-
 
 int main(int argc, char** argv){
     enum io_error_t err;
@@ -220,11 +240,16 @@ int main(int argc, char** argv){
     swa.border_pixel = 0;
     swa.event_mask = ExposureMask | StructureNotifyMask | KeyPressMask;
 
+
+    int winheight = XDisplayHeight(display, screen);
+    int winwidth = XDisplayWidth(display, screen);
+    printf("h=%d, s=%d\n", winheight, winwidth);
+
     Window win = XCreateWindow(
         display,
         root,
         0, 0,
-        1280, 720,
+        (unsigned int)winwidth, (unsigned int)winheight, //1280, 720,
         0,
         vis->depth,
         InputOutput,
@@ -238,9 +263,22 @@ int main(int argc, char** argv){
         fputs("failedtointern the WM_COLORMAP_WINDOWS\n", stderr);
     }
 
+    Atom atoms[2] = { XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False), None };
+    XChangeProperty(
+        display,
+        win,
+        XInternAtom(display, "_NET_WM_STATE", False),
+        XA_ATOM,
+        32,
+        PropModeReplace,
+        (unsigned char*)atoms,
+        1
+    );
+
     XStoreName(display, win, "visualizer");
     XMapWindow(display, win);
     glXMakeCurrent(display, win, ctx);
+
 
     //XEvent event;
     //(void)event;
@@ -352,30 +390,31 @@ int main(int argc, char** argv){
     glFlush();
     glDisable(GL_LINE_STIPPLE);
 
-
     struct dynarr_t path;
     pf_create_path(&map, start, dest, parents, &path);
 
     glLineWidth(2.0f);
     draw_path(&map, &path, COLOR_PATH);
     glFlush(); ce;
-    usleep(200000);
+    wait_for_keypress(display, win);
 
     draw_map(width, height);
     draw_path(&map, &path, COLOR_PATH);
     glFlush(); ce;
-    usleep(200000);
+    usleep(TIME_DELAY);
 
     for (uint32_t i = 0; i < smooth_steps; ++i){
-        erase_path(&map, &path);
+        glEnable(GL_TEXTURE_2D); ce;
+        draw_path(&map, &path, COLOR_WHITE);
+        glDisable(GL_TEXTURE_2D); ce;
         smooth_step(&map, &path);
         draw_path(&map, &path, COLOR_PATH);
         glFlush(); ce;
-        usleep(200000);
+        usleep(TIME_DELAY);
     }
-
-    puts("Finished. Press Any Key To Continue");
-    getc(stdin);
+    draw_path(&map, &path, COLOR_PATH_FINAL);
+    glFlush(); ce;
+    wait_for_keypress(display, win);
 
     dynarr_free(&path);
     free(parents);

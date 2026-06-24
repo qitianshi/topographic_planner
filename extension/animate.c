@@ -18,6 +18,7 @@
 #define PATTERN_BROKEN 0xf00f
 #define COLOR_PATH (GLubyte[3]){UINT8_MAX, 0, UINT8_MAX}
 #define COLOR_PATH_FINAL (GLubyte[3]){0, UINT8_MAX, UINT8_MAX}
+#define PATH_WIDTH 2.0f
 #define TIME_DELAY 100000
 
 #define COLOR_COST_LOW (GLubyte[3]){ 0, 0, 81 }
@@ -355,7 +356,7 @@ int main(int argc, char** argv){
     uint32_t* parents = calloc(width * height, sizeof *parents);
     if (!parents){
         fputs("failed to allocate parents array\n", stderr);
-        goto freeparents;
+        goto closefile;
     }
 
     for(uint32_t more_updates = true, i = 0; more_updates; ++i){
@@ -392,9 +393,12 @@ int main(int argc, char** argv){
     glDisable(GL_LINE_STIPPLE);
 
     struct dynarr_t path;
-    pf_create_path(&map, start, dest, parents, &path);
+    if (!pf_create_path(&map, start, dest, parents, &path)){
+        fputs("failed to allocate memory for path\n", stderr);
+        goto freeparents;
+    }
 
-    glLineWidth(2.0f);
+    glLineWidth(PATH_WIDTH);
     draw_path(&map, &path, COLOR_PATH);
     glFlush(); ce;
     wait_for_keypress(display, win);

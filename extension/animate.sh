@@ -1,5 +1,5 @@
 if [[ $# -ne 1 ]]; then
-    echo "Usage: ./animate.sh config-file" >&2
+    echo "Usage: ./animate.sh <config-file>" >&2
     exit 2
 fi
 

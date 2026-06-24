@@ -1,6 +1,6 @@
 #include "map.h"
 #include "pathfinder.h"
-#include "ctype.h"
+#include <ctype.h>
 
 enum io_error_t {
     ERR_OK,              // OK

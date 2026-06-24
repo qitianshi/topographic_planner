@@ -88,7 +88,7 @@ static void pf_visual_update_finished(
 
 static void pf_visual_init(
     struct pf_extra_out_t* extra_out,
-    struct pf_cells_t* cells
+    const struct pf_cells_t* cells
 ) {
     if (!extra_out->visual)
         return;

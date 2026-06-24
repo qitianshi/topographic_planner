@@ -147,6 +147,7 @@ static void wait_for_keypress(Display* display, Window win){
 }
 
 int main(int argc, char** argv){
+    int exit_code = EXIT_FAILURE;
     enum io_error_t err;
 
     uint32_t smooth_steps;
@@ -155,17 +156,17 @@ int main(int argc, char** argv){
     struct terrain_map_t map;
     if ((err = io_load_map(&map)) != ERR_OK){
         fprintf(stderr, "failed to read map: %s (%d)\n", io_err_to_str(err), (int)err);
-        return EXIT_FAILURE;
+        goto exit;
     }
 
     uint32_t stepsize;
     if ((err = getenv_uint32("VIS_STEP_SIZE", &stepsize)) != ERR_OK){
         if (err != ERR_VAR_NOT_FOUND){
             fprintf(stderr, "failed to read VIS_STEP_SIZE environment variable: %s (%d)\n", io_err_to_str(err), (int)err);
-            return EXIT_FAILURE;
+            goto freemap;
         } else if (argc > 2 && (err = str_to_uint32(argv[2], &stepsize)) != ERR_OK){
             fprintf(stderr, "failed to read stepsize command line argument: %s (%d)", io_err_to_str(err), (int)err);
-            return EXIT_FAILURE;
+            goto freemap;
         } else {
             stepsize = 50;
         }
@@ -175,13 +176,13 @@ int main(int argc, char** argv){
     const char* visualfile = argv[1] ? argv[1] : getenv("PF_VISUALIZE_SEARCH");
     if (!visualfile){
         fputs("expected at least one command line argument or environment variable PF_VISUALIZE_SEARCH\n", stderr);
-        return EXIT_FAILURE;
+        goto freemap;
     }
 
     Display* display = XOpenDisplay(NULL);
     if (!display){
         fputs("failed to open display\n", stderr);
-        return EXIT_FAILURE;
+        goto freemap;
     }
 
     int screen = XDefaultScreen(display);
@@ -191,9 +192,8 @@ int main(int argc, char** argv){
         puts("display supports GLX extension");
     } else {
         fputs("display does not support GLX extension\n", stderr);
-        return EXIT_FAILURE;
+        goto freedisplay;
     }
-
 
     int major, minor;
     if (!glXQueryVersion(display, &major, &minor)) {
@@ -214,18 +214,19 @@ int main(int argc, char** argv){
     XVisualInfo* vis = glXChooseVisual(display, screen, attrs);
     if (!vis){
         fputs("Undefined GLX attribute encountered in attrs\n", stderr);
+        goto freedisplay;
     }
     //glXGetConfig(dipplay, vi, GLX_RGBA)
 
     GLXContext ctx = glXCreateContext(display, vis, NULL, true);
     if (!ctx){
         fputs("failed to create opengl rendering context\n", stderr);
+        goto freevis;
     } else {
         puts("created opengl rendering context");
     }
 
     XSetWindowAttributes swa;
-
 
     Window root = XRootWindow(display, vis->screen);
 
@@ -260,7 +261,7 @@ int main(int argc, char** argv){
 
     //XSetWMProperties(display, win, ,)
     if (XSetWMColormapWindows(display, root, (Window[]){root, win}, 2) == 0){
-        fputs("failedtointern the WM_COLORMAP_WINDOWS\n", stderr);
+        fputs("failed to intern the WM_COLORMAP_WINDOWS\n", stderr);
     }
 
     Atom atoms[2] = { XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False), None };
@@ -286,17 +287,17 @@ int main(int argc, char** argv){
     FILE* in = fopen(visualfile, "rb");
     if (!in){
         fprintf(stderr, "failed to open input file %s\n", visualfile);
-        return EXIT_FAILURE;
+        goto freevis;
     }
 
     uint32_t width, height, start, dest;
     if (fread(&start, sizeof start, 1, in) != 1) {
         fputs("failed to read start\n", stderr);
-        return EXIT_FAILURE;
+        goto closefile;
     }
     if (fread(&dest, sizeof dest, 1, in) != 1) {
         fputs("failed to read dest\n", stderr);
-        return EXIT_FAILURE;
+        goto closefile;
     }
     width = map.npoints_x;
     height = map.npoints_y;
@@ -306,7 +307,7 @@ int main(int argc, char** argv){
     GLubyte* tdata = calloc((size_t)twidth * (size_t)theight, NCOLORCOMP * sizeof * tdata);
     if (!tdata){
         fputs("failed to allocate texture data\n", stderr);
-        return EXIT_FAILURE;
+        goto closefile;
     }
 
     for (uint32_t y = 0, i = 0, j = 0;
@@ -354,14 +355,14 @@ int main(int argc, char** argv){
     uint32_t* parents = calloc(width * height, sizeof *parents);
     if (!parents){
         fputs("failed to allocate parents array\n", stderr);
-        return EXIT_FAILURE;
+        goto freeparents;
     }
 
     for(uint32_t more_updates = true, i = 0; more_updates; ++i){
         struct pf_visual_update_t update;
         if (fread(&update, sizeof update, 1, in) != 1){
             fputs("failed to read update\n", stderr);
-            return EXIT_FAILURE;
+            goto freeparents;
         }
         switch(update.type){
             case PF_VISUAL_UPDATE_TREE:
@@ -416,10 +417,19 @@ int main(int argc, char** argv){
     glFlush(); ce;
     wait_for_keypress(display, win);
 
+    exit_code = EXIT_SUCCESS;
+
     dynarr_free(&path);
+freeparents:
     free(parents);
-    terrain_map_free(&map);
+closefile:
     fclose(in);
+freevis:
     XFree(vis);
+freedisplay:
     XCloseDisplay(display);
+freemap:
+    terrain_map_free(&map);
+exit:
+    return exit_code;
 }

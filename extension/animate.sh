@@ -9,4 +9,4 @@ source data/pathfinder.config
 set +a
 
 # run the pathfind program
-./visualizer 
+./animate

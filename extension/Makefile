@@ -5,8 +5,8 @@ CFLAGS  ?= -std=c99 -g \
 	-Wall -Werror -Wpedantic -Wshadow -Wconversion
 BUILD_DIR = ../.build
 
-SRCFILES_VISUALIZER = visualizer.o io.c map.c pathfinder.c adt/dynarr.c adt/heap.c adt/bitarr.c smooth.c
-OBJFILES_VISUALIZER = $(SRCFILES_VISUALIZER:%.c=$(BUILD_DIR)/%.o)
+SRCFILES_ANIMATE = animate.c io.c map.c pathfinder.c adt/dynarr.c adt/heap.c adt/bitarr.c smooth.c
+OBJFILES_ANIMATE = $(SRCFILES_ANIMATE:%.c=$(BUILD_DIR)/%.o)
 SRCFILES = io.c map.c main.c pathfinder.c adt/dynarr.c adt/heap.c adt/bitarr.c smooth.c
 OBJFILES = $(SRCFILES:%.c=$(BUILD_DIR)/%.o)
 DEPFILES = $(OBJFILES:%.o=%.d)
@@ -14,7 +14,7 @@ LDLIBS = -lm
 
 .PHONY: all
 
-all: pathfind visualizer
+all: pathfind animate
 
 clean:
 	$(RM) -r $(BUILD_DIR)
@@ -25,13 +25,13 @@ clean:
 pathfind: $(OBJFILES)
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-visualizer: $(OBJFILES_VISUALIZER)
+animate: $(OBJFILES_ANIMATE)
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -lX11 -lGL -o $@
 
 $(BUILD_DIR)/%.o: %.c
 	$(CC) $(CFLAGS) -MMD -c $< -o $@
 
-$(OBJFILES) $(OBJFILES_VISUALIZER): | $(BUILD_DIR) $(BUILD_DIR)/adt
+$(OBJFILES) $(OBJFILES_ANIMATE): | $(BUILD_DIR) $(BUILD_DIR)/adt
 
 $(BUILD_DIR) $(BUILD_DIR)/adt:
 	mkdir -p $(BUILD_DIR) $(BUILD_DIR)/adt

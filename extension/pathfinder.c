@@ -32,6 +32,117 @@ struct pf_cells_t {
     uint32_t dest_pos;
 };
 
+static void pf_visual_update_change_edge(
+    const struct pf_extra_out_t* out,
+    uint32_t cur_pos,
+    uint32_t next_pos,
+    uint32_t old_parent
+) {
+    if (!out->visual) return;
+    struct pf_visual_update_t update = {
+        .type = PF_VISUAL_UPDATE_CHANGE_EDGE,
+        .pos = next_pos,
+        .parent = cur_pos,
+        .old_parent = old_parent,
+    };
+    fwrite(&update, sizeof update, 1, out->visual);
+}
+
+static void pf_visual_update_queue(
+    const struct pf_extra_out_t* out,
+    uint32_t cur_pos,
+    uint32_t next_pos
+) {
+    if (!out->visual) return;
+    struct pf_visual_update_t update = {
+        .type = PF_VISUAL_UPDATE_QUEUE,
+        .pos = next_pos,
+        .parent = cur_pos
+    };
+    fwrite(&update, sizeof update, 1, out->visual);
+}
+
+static void pf_visual_update_tree(
+    const struct pf_extra_out_t* out,
+    uint32_t cur_pos,
+    uint32_t next_pos
+) {
+    if (!out->visual) return;
+    struct pf_visual_update_t update = {
+        .type = PF_VISUAL_UPDATE_TREE,
+        .pos = next_pos,
+        .parent = cur_pos
+    };
+    fwrite(&update, sizeof update, 1, out->visual);
+}
+
+static void pf_visual_update_finished(
+    const struct pf_extra_out_t* out
+) {
+    if (!out->visual) return;
+    struct pf_visual_update_t update = {
+        .type = PF_VISUAL_UPDATE_FINISHED
+    };
+    fwrite(&update, sizeof update, 1, out->visual);
+}
+
+static void pf_visual_init(
+    struct pf_extra_out_t* extra_out,
+    const struct pf_cells_t* cells
+) {
+    if (!extra_out->visual)
+        return;
+    FILE* out = fopen(extra_out->visual, "wb");
+    if (out) {
+        free(extra_out->visual);
+        extra_out->visual = out;
+        fwrite(&cells->start_pos, sizeof cells->start_pos, 1, out);
+        fwrite(&cells->dest_pos, sizeof cells->dest_pos, 1, out);
+    }
+    else {
+        fprintf(stderr, "failed to open visualize search file %s\n", (char*)extra_out->visual);
+        free(extra_out->visual);
+        extra_out->visual = NULL;
+    }
+}
+
+static void pf_visual_shutdown(
+   struct pf_extra_out_t* out
+){
+    if (!out->visual) return;
+    pf_visual_update_finished(out);
+    if (ferror((FILE*)out->visual))
+        fputs("Write error occured in visual output file\n", stderr);
+    if (fclose(out->visual))
+        fputs("Failed to close visual output file\n", stderr);
+}
+
+/*
+make texture for map based on costs,
+    - glGenTexture,
+    - glBindTexture,
+    - glTextImage2D,
+    - glEanble(GL_TEXTURE_2D)
+    - glTexCoord
+    - glRect
+draw point in tree, queue
+    - glBegin, glEnd, glPointSize, glColor
+    - make them yellow
+draw line in tree, queue
+    - glBegin, glEnd, glLineWidth, glLineStipple, glColor
+change point from queue to tree
+    - Draw over point
+change edge from queue to tree
+    - draw line in tree
+change edge from queue to another queue
+    - draw white line over original line
+    - set text coords appropriately
+    - draw new line in queue
+
+
+
+*/
+
 static bool pf_is_reachable(float cost) {
     return cost != PF_COST_INFINITY;
 }
@@ -146,40 +257,43 @@ static void pf_cells_free(struct pf_cells_t *cells) {
 
 static void pf_cells_enqueue(
     const struct terrain_map_t *map,
-    const struct pf_weights_t *weights,
+    const struct pf_config_t *config,
     struct pf_cells_t *cells,
     uint32_t cur_pos,
     uint32_t next_pos
 ) {
     const float edge_cost =
-        pf_cell_calc_edge_cost(map, weights, cur_pos, next_pos);
+        pf_cell_calc_edge_cost(map, &config->weights, cur_pos, next_pos);
     if (!pf_is_reachable(edge_cost))
         return;
     cells->dists[next_pos] = edge_cost + cells->dists[cur_pos];
     const float dist_to_dest =
-        pf_cell_calc_dist(map, weights, next_pos, cells->dest_pos);
+        pf_cell_calc_dist(map, &config->weights, next_pos, cells->dest_pos);
     struct pf_cell_t cell = {
         .pos = next_pos, .path_len = cells->dists[next_pos] + dist_to_dest
     };
+    pf_visual_update_queue(&config->extra_out, cur_pos, next_pos);
     cells->parents[next_pos] = cur_pos;
     const bool success = heap_insert(&cells->to_explore, &cell);
     assert(success); // should never need to resize
 }
 
+
 static void pf_cells_consider_shorter_dist(
     const struct terrain_map_t *map,
-    const struct pf_weights_t *weights,
+    const struct pf_config_t *config,
     struct pf_cells_t *cells,
     uint32_t cur_pos,
     uint32_t next_pos
 ) {
     const float edge_cost =
-        pf_cell_calc_edge_cost(map, weights, cur_pos, next_pos);
+        pf_cell_calc_edge_cost(map, &config->weights, cur_pos, next_pos);
     if (!pf_is_reachable(edge_cost))
         return;
     const phys_dist_t dist_to_cell = cells->dists[cur_pos] + edge_cost;
     if (dist_to_cell >= cells->dists[next_pos])
         return;
+    pf_visual_update_change_edge(&config->extra_out, cur_pos, next_pos, cells->parents[next_pos]);
     size_t cell_idx = pf_cells_queue_get_idx(cells, next_pos);
     struct pf_cell_t *cell = heap_get(&cells->to_explore, cell_idx);
     const float dist_to_dest = cell->path_len - cells->dists[next_pos];
@@ -202,6 +316,7 @@ static void pf_cells_queue_pop_closest(struct pf_cells_t *cells) {
 static bool pf_cells_queue_is_empty(struct pf_cells_t *cells) {
     return heap_is_empty(&cells->to_explore);
 }
+
 
 static FILE *pf_get_stream(void *extra_out) {
     if (extra_out == NULL)
@@ -265,15 +380,25 @@ static void pf_display_search(
         fclose(out);
 }
 
+static void pf_cells_tree_add(
+    const struct pf_config_t* config,
+    struct pf_cells_t* cells,
+    uint32_t pos
+){
+    bitarr_set(cells->intree, pos);
+    pf_visual_update_tree(&config->extra_out, cells->parents[pos], pos);
+}
+
 static bool pf_search(
     const struct terrain_map_t *map,
-    const struct pf_weights_t *weights,
+    const struct pf_config_t *config,
     struct pf_cells_t *cells
 ) {
     uint32_t cur_pos = cells->start_pos;
+    cells->parents[cur_pos] = cur_pos;
     cells->dists[cur_pos] = 0;
     while (true) {
-        bitarr_set(cells->intree, cur_pos);
+        pf_cells_tree_add(config, cells, cur_pos);
         for (uint32_t row_pos = cur_pos - 1 - map->npoints_x,
                       last_row_pos = cur_pos + map->npoints_x - 1;
              row_pos <= last_row_pos; row_pos += map->npoints_x) {
@@ -288,10 +413,10 @@ static bool pf_search(
                     continue;
                 if (pf_cells_queue_contains(cells, next_pos))
                     pf_cells_consider_shorter_dist(
-                        map, weights, cells, cur_pos, next_pos
+                        map, config, cells, cur_pos, next_pos
                     );
                 else
-                    pf_cells_enqueue(map, weights, cells, cur_pos, next_pos);
+                    pf_cells_enqueue(map, config, cells, cur_pos, next_pos);
             }
         }
         if (pf_cells_tree_contains(cells, cells->dest_pos))
@@ -320,16 +445,18 @@ static void pf_reverse_path(const struct dynarr_t *path) {
     }
 }
 
-static bool pf_create_path(
-    const struct terrain_map_t *map,
-    const struct pf_cells_t *cells,
-    struct dynarr_t *path
-) {
+extern bool pf_create_path(
+    const struct terrain_map_t* map,
+    uint32_t start_pos,
+    uint32_t dest_pos,
+    uint32_t* parents,
+    struct dynarr_t* path
+){
     if (!dynarr_make(path, sizeof(struct point_2d_t), PF_PATH_INITIAL_CAPACITY))
         return false;
-    cells->parents[cells->start_pos] = UINT32_MAX;
-    for (uint32_t cur_pos = cells->dest_pos; cur_pos != UINT32_MAX;
-         cur_pos = cells->parents[cur_pos]) {
+    parents[start_pos] = UINT32_MAX;
+    for (uint32_t cur_pos = dest_pos; cur_pos != UINT32_MAX;
+        cur_pos = parents[cur_pos]) {
         struct grid_coord_t coord = terrain_map_get_coord(map, cur_pos);
         struct point_2d_t point = terrain_map_to_point(map, coord);
         if (!dynarr_append(path, &point)) {
@@ -340,6 +467,14 @@ static bool pf_create_path(
 
     pf_reverse_path(path);
     return true;
+}
+
+static bool pf_cells_create_path(
+    const struct terrain_map_t *map,
+    const struct pf_cells_t *cells,
+    struct dynarr_t *path
+) {
+    return pf_create_path(map, cells->start_pos, cells->dest_pos, cells->parents, path);
 }
 
 static void pf_eval_path(
@@ -442,9 +577,10 @@ static void pf_eval_path(
         fclose(out);
 }
 
+
 enum pf_result_t pathfinder(
     const struct terrain_map_t *map,
-    const struct pf_config_t *config,
+    struct pf_config_t *config,
     struct dynarr_t *path
 ) {
     struct pf_cells_t cells;
@@ -452,18 +588,22 @@ enum pf_result_t pathfinder(
         pf_cells_free(&cells);
         return PF_RESULT_ERR_MEM;
     }
+    pf_visual_init(&config->extra_out, &cells);
 
-    if (!pf_search(map, &config->weights, &cells)) {
+    if (!pf_search(map, config, &cells)) {
         pf_cells_free(&cells);
+        pf_visual_shutdown(&config->extra_out);
         return PF_RESULT_NO_PATH;
     }
-    if (!pf_create_path(map, &cells, path)) {
+    if (!pf_cells_create_path(map, &cells, path)) {
         pf_cells_free(&cells);
+        pf_visual_shutdown(&config->extra_out);
         return PF_RESULT_ERR_MEM;
     }
     pf_display_search(map, config, &cells, path);
     pf_eval_path(map, config, &cells, path);
     pf_cells_free(&cells);
+    pf_visual_shutdown(&config->extra_out);
     return PF_RESULT_FOUND_PATH;
 }
 

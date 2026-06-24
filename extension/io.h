@@ -1,6 +1,6 @@
 #include "map.h"
 #include "pathfinder.h"
-
+#include <ctype.h>
 
 enum io_error_t {
     ERR_OK,              // OK
@@ -14,15 +14,12 @@ enum io_error_t {
     ERR_VAR_OUT_OF_RANGE // value for an environment variable was out of range
 };
 
-struct io_filepaths_t {
-    char *mapdata; // csv map data input file
-    char *pathout; // csv path data output file
-};
+extern enum io_error_t str_to_uint32(const char* s, uint32_t* val);
+extern enum io_error_t getenv_uint32(const char* name, uint32_t* val);
 
 extern const char *io_err_to_str(enum io_error_t err);
-extern enum io_error_t io_load_paths(struct io_filepaths_t *paths);
-extern void io_free_paths(struct io_filepaths_t *paths);
 extern enum io_error_t io_load_pathfinder_config(struct pf_config_t *config);
+extern void io_load_smooth_steps(uint32_t* smooth_steps);
 
 
 /**
@@ -56,10 +53,7 @@ extern enum io_error_t io_load_pathfinder_config(struct pf_config_t *config);
  *      CSV file.
  * @param map Output pointer to the map.
  */
-extern enum io_error_t io_load_map(
-    struct io_filepaths_t *paths,
-    struct terrain_map_t *map
-);
+extern enum io_error_t io_load_map(struct terrain_map_t *map);
 
 /**
  * Stores a terrain path to an output file.
@@ -72,7 +66,4 @@ extern enum io_error_t io_load_map(
  * 0.3,0.4
  * ```
  */
-extern enum io_error_t io_store_path(
-    struct io_filepaths_t *paths,
-    const struct dynarr_t *path
-);
+extern enum io_error_t io_store_path(const struct dynarr_t *path);

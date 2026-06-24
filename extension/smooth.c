@@ -3,7 +3,7 @@
 #include <assert.h>
 
 /* Interpolate two points by a factor 'c' */
-struct point_2d_t lerp(
+static struct point_2d_t lerp(
     const struct point_2d_t a,
     const struct point_2d_t b,
     float c
@@ -25,7 +25,7 @@ uint8_t cost(const struct terrain_map_t *map, const struct point_2d_t point) {
 }
 
 /* A single smooth step over a path, respecting the cost map */
-void step(const struct terrain_map_t *map, const struct dynarr_t *path) {
+void smooth_step(const struct terrain_map_t *map, const struct dynarr_t *path) {
     if (path->length < 2)
         return;
     struct point_2d_t first = *(struct point_2d_t *)dynarr_get(path, 0);
@@ -45,8 +45,8 @@ void step(const struct terrain_map_t *map, const struct dynarr_t *path) {
 }
 
 /* Smooth an entire path using multiple steps */
-void smooth(const struct terrain_map_t *map, const struct dynarr_t *path) {
-    for (int i = 0; i < SMOOTH_STEPS; i++) {
-        step(map, path);
+void smooth(const struct terrain_map_t *map, uint32_t steps, const struct dynarr_t *path) {
+    for (uint32_t i = 0; i < steps; i++) {
+        smooth_step(map, path);
     }
 }

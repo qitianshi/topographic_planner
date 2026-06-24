@@ -8,6 +8,7 @@
 struct pf_extra_out_t {
     void *path_eval;
     void *search_display;
+    void *visual; //visualize search
 };
 
 struct pf_weights_t {
@@ -31,6 +32,21 @@ enum pf_result_t {
     PF_RESULT_ERR_MEM // failed to find a path due to a memory allocation error
 };
 
+enum {
+    PF_VISUAL_UPDATE_TREE,
+    PF_VISUAL_UPDATE_QUEUE,
+    PF_VISUAL_UPDATE_CHANGE_EDGE,
+    PF_VISUAL_UPDATE_FINISHED
+};
+
+typedef unsigned char pf_visual_update_type_t;
+
+struct pf_visual_update_t {
+    uint32_t pos;
+    uint32_t parent;
+    uint32_t old_parent;
+    pf_visual_update_type_t type;
+};
 
 /**
  * Calculates the optimal path in the `map` from `start` to `dest`
@@ -46,9 +62,16 @@ extern const char *pf_result_to_str(enum pf_result_t);
 
 extern enum pf_result_t pathfinder(
     const struct terrain_map_t *map,
-    const struct pf_config_t *config,
+    struct pf_config_t *config,
     struct dynarr_t *path
 );
 
+extern bool pf_create_path(
+    const struct terrain_map_t* map,
+    uint32_t start_pos,
+    uint32_t dest_pos,
+    uint32_t* parents,
+    struct dynarr_t* path
+);
 
 #endif

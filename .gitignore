@@ -1,0 +1,138 @@
+# ==========================================
+# Project files
+# ==========================================
+data/
+!data/*.example
+
+# ==========================================
+# ROS & Catkin Build Artifacts
+# ==========================================
+devel/
+logs/
+build/
+Build/
+build-*/
+build_isolated/
+devel_isolated/
+bin/
+lib/
+CATKIN_IGNORE
+
+# ROS Generated Message/Service Headers & Scripts
+msg_gen/
+srv_gen/
+msg/*Action.msg
+msg/*ActionFeedback.msg
+msg/*ActionGoal.msg
+msg/*ActionResult.msg
+msg/*Feedback.msg
+msg/*Goal.msg
+msg/*Result.msg
+msg/_*.py
+srv/_*.py
+
+# Dynamic Reconfigure & Documentation
+*.cfgc
+/cfg/cpp/
+/cfg/*.py
+*.dox
+*.wikidoc
+
+# ==========================================
+# CMake
+# ==========================================
+CMakeFiles/
+CMakeScripts/
+CMakeCache.txt
+CMakeUserPresets.json
+cmake_install.cmake
+# Makefile                  # To uncomment after changing build system to CMake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+Testing/
+
+# ==========================================
+# Compiled Objects & Precompiled Headers
+# ==========================================
+*.o
+*.ko
+*.obj
+*.elf
+*.slo
+*.lo
+*.gch
+*.pch
+
+# ==========================================
+# Libraries (Static & Dynamic)
+# ==========================================
+*.a
+*.lib
+*.la
+*.lai
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# ==========================================
+# Executables & Hardwares Outputs
+# ==========================================
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# ==========================================
+# Debug, Caches & Diagnostics
+# ==========================================
+*.d
+*.dwo
+*.pdb
+*.ilk
+*.map
+*.exp
+*.su
+*.idb
+*.dSYM/
+.cache/
+
+# ==========================================
+# Package Managers & Kernel Modules
+# ==========================================
+vcpkg_installed/
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+# ==========================================
+# IDEs, Editors & Temporary Files
+# ==========================================
+# Eclipse
+.project
+.cproject
+
+# QtCreator
+CMakeLists.txt.user
+qtcreator-*
+*.user
+
+# General Text Editors & OS Temps
+*.tmp
+*.log
+*.bak
+*.swp
+*~
+.#*
+
+# Miscellaneous Data
+*.pcd
+*.pyc

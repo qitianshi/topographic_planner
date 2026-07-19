@@ -1,7 +1,7 @@
 #ifndef PATHFINDER_HPP
 #define PATHFINDER_HPP
 
-#include "map.hpp"
+#include "terrainmap.hpp"
 #include <vector>
 #include <cstdint>
 #include <cstdio>

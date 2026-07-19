@@ -1,7 +1,7 @@
 #ifndef IO_HPP
 #define IO_HPP
 
-#include "map.hpp"
+#include "terrainmap.hpp"
 #include "pathfinder.hpp"
 #include <string>
 #include <vector>

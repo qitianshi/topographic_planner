@@ -3,12 +3,12 @@
 #include <cstdlib>
 
 #include "io.hpp"
-#include "map.hpp"
+#include "terrainmap.hpp"
 #include "pathfinder.hpp"
 #include "smooth.hpp"
 
 void reportError(io::IoError err) {
-    std::cerr << "pathfinder exited with error " << io::errorToStr(err) 
+    std::cerr << "pathfinder exited with error " << io::errorToStr(err)
               << " (" << static_cast<int>(err) << ")\n";
 }
 
@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
     io::IoError err;
 
     io::loadSmoothSteps(smoothSteps);
-    
+
     if ((err = io::loadConfig(pfConfig)) != io::IoError::Ok) {
         reportError(err);
         return EXIT_FAILURE;
@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
     }
 
     // map destructor will automatically free vectors, no manual free needed.
-    
+
     // Also clean up visual files if any
     if (pfConfig.extraOut.visual) {
         fclose(pfConfig.extraOut.visual);

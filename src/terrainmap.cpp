@@ -1,4 +1,4 @@
-#include "map.hpp"
+#include "terrainmap.hpp"
 #include <cstdint>
 #include <cstdlib>
 

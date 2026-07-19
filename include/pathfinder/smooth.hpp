@@ -1,7 +1,7 @@
 #ifndef SMOOTH_HPP
 #define SMOOTH_HPP
 
-#include "map.hpp"
+#include "terrainmap.hpp"
 #include <vector>
 #include <cstdint>
 

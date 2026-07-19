@@ -116,6 +116,9 @@ dkms.conf
 # ==========================================
 # IDEs, Editors & Temporary Files
 # ==========================================
+.vscode/
+.idea/
+
 # Eclipse
 .project
 .cproject

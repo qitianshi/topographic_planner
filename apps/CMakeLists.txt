@@ -1,7 +1,7 @@
 # Define the executable
 add_executable(pathfinder
-    main.c
-    io.c
+    main.cpp
+    io.cpp
 )
 
 # Set private include directory

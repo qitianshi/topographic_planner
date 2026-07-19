@@ -1,11 +1,8 @@
 # Define the static pathfinder library
 add_library(pathfinder_lib STATIC
-    map.c
-    pathfinder.c
-    smooth.c
-    adt/bitarr.c
-    adt/dynarr.c
-    adt/heap.c
+    map.cpp
+    pathfinder.cpp
+    smooth.cpp
 )
 
 # Configure include directories
@@ -13,10 +10,8 @@ target_include_directories(pathfinder_lib
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include/pathfinder>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include/pathfinder/adt>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/adt
 )
 
 # Link math library if needed

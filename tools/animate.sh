@@ -13,5 +13,5 @@ source $1
 # ensure "VAR=VAL" definitons will no longer be exported to child processes
 set +a
 
-# run the pathfind program
+# run the animate program
 ./animate

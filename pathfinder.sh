@@ -1,5 +1,5 @@
 if [[ $# -ne 1 ]]; then
-    echo "Usage: ./pathfind.sh <config-file>" >&2
+    echo "Usage: ./pathfinder.sh <config-file>" >&2
     exit 2
 fi
 
@@ -10,8 +10,8 @@ set -a
 # set all the environment variables
 source $1
 
-# ensure "VAR=VAL" definitons will no longer be exported to child processes
+# ensure "VAR=VAL" definitions will no longer be exported to child processes
 set +a
 
-# run the pathfind program
-./pathfind
+# run the pathfinder program
+./build/apps/pathfinder

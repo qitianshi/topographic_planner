@@ -46,7 +46,7 @@ CMakeScripts/
 CMakeCache.txt
 CMakeUserPresets.json
 cmake_install.cmake
-# Makefile                  # To uncomment after changing build system to CMake
+Makefile
 install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake

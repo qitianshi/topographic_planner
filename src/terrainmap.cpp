@@ -68,4 +68,4 @@ bool TerrainMap::isDiagonal(uint32_t curPos, uint32_t nextPos) const {
     return curCoord.x != nextCoord.x && curCoord.y != nextCoord.y;
 }
 
-} // namespace terrainmap
+}

@@ -1,5 +1,4 @@
-#ifndef IO_HPP
-#define IO_HPP
+#pragma once
 
 #include "terrainmap.hpp"
 #include "pathfinder.hpp"
@@ -71,6 +70,4 @@ IoError loadMap(terrainmap::TerrainMap& map);
  */
 IoError storePath(const std::vector<terrainmap::Point2D>& path);
 
-} // namespace io
-
-#endif // IO_HPP
+}

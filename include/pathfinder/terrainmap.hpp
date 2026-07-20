@@ -1,5 +1,4 @@
-#ifndef MAP_HPP
-#define MAP_HPP
+#pragma once
 
 #include <cstdint>
 #include <vector>
@@ -54,6 +53,4 @@ struct TerrainMap {
     bool isDiagonal(uint32_t curPos, uint32_t nextPos) const;
 };
 
-} // namespace terrainmap
-
-#endif // MAP_HPP
+}

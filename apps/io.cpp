@@ -72,11 +72,11 @@ static IoError strToBool(const std::string& s, bool& b) {
         b = (val != 0);
         return IoError::Ok;
     }
-    
+
     std::string lower = s;
     std::transform(lower.begin(), lower.end(), lower.begin(),
                    [](unsigned char c){ return std::tolower(c); });
-    
+
     if (lower == "true") {
         b = true;
         return IoError::Ok;
@@ -175,7 +175,7 @@ static FILE* loadExtraOutConfig(const char* name) {
     std::string s(envName);
     if (s == "NULL" || s == "null") return nullptr;
     if (s == "stdout") return stdout;
-    
+
     FILE* f = fopen(envName, "w");
     if (!f) return nullptr;
     if (fputc('\n', f) == EOF) {
@@ -183,7 +183,7 @@ static FILE* loadExtraOutConfig(const char* name) {
         return nullptr;
     }
     fclose(f);
-    
+
     f = fopen(envName, "a");
     return f;
 }
@@ -191,7 +191,7 @@ static FILE* loadExtraOutConfig(const char* name) {
 static void loadExtraOutConfigs(pathfinder::ExtraOut& extraOut) {
     extraOut.pathEval = loadExtraOutConfig("PF_EVAL_PATH");
     extraOut.searchDisplay = loadExtraOutConfig("PF_DISPLAY_SEARCH");
-    
+
     const char* vis = std::getenv("PF_VISUALIZE_SEARCH");
     if (vis && std::string(vis) != "NULL" && std::string(vis) != "null") {
         extraOut.visual = fopen(vis, "wb");
@@ -229,15 +229,15 @@ static IoError loadMapData(const char* dataPath, terrainmap::TerrainMap& out) {
 
     while (std::getline(file, line)) {
         if (line.empty()) continue;
-        
+
         uint32_t x, y;
         terrainmap::PhysDist elevation;
         uint32_t costInt; // read as int, then cast to uint8_t
-        
+
         for (char& c : line) {
             if (c == ',') c = ' ';
         }
-        
+
         std::istringstream iss(line);
         if (!(iss >> x >> y >> elevation >> costInt)) {
             std::cerr << "loadMapData: malformed input on line " << (index + 2) << "\n";
@@ -254,7 +254,7 @@ static IoError loadMapData(const char* dataPath, terrainmap::TerrainMap& out) {
         } else {
             ++expectedX;
         }
-        
+
         if (index < maxIndex) {
             out.dataElevation[index] = elevation;
             out.dataCost[index] = static_cast<uint8_t>(costInt);
@@ -276,14 +276,14 @@ IoError loadMap(terrainmap::TerrainMap& map) {
         std::cerr << "allocation for TerrainMap failed\n";
         return IoError::Memory;
     }
-    
+
     const char* mapdata = std::getenv("MAPDATA");
     if (!mapdata) {
         std::cerr << "failed to retrieve environment variable MAPDATA\n";
         map.free();
         return IoError::VarNotFound;
     }
-    
+
     if ((err = loadMapData(mapdata, map)) != IoError::Ok) {
         std::cerr << "failed to load map data from " << mapdata << "\n";
         map.free();
@@ -297,28 +297,28 @@ IoError storePath(const std::vector<terrainmap::Point2D>& path) {
         std::cerr << "failed to retrieve environment variable PATHOUT\n";
         return IoError::VarNotFound;
     }
-    
+
     std::ofstream out(pathout);
     if (!out) {
         std::cerr << "failed to open path output file " << pathout << "\n";
         return IoError::File;
     }
-    
+
     out << "x,y\n";
     if (out.fail()) return IoError::File;
-    
+
     for (const auto& point : path) {
         out << point.x << "," << point.y << "\n";
         if (out.fail()) return IoError::File;
     }
-    
+
     out.close();
     if (out.fail()) {
         std::cerr << "failed to close file " << pathout << "\n";
         return IoError::File;
     }
-    
+
     return IoError::Ok;
 }
 
-} // namespace io
+}

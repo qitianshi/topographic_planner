@@ -23,17 +23,17 @@ static uint8_t getCost(const terrainmap::TerrainMap& map, const terrainmap::Poin
 /* A single smooth step over a path, respecting the cost map */
 void step(const terrainmap::TerrainMap& map, std::vector<terrainmap::Point2D>& path) {
     if (path.size() < 2) return;
-    
+
     terrainmap::Point2D first = path[0];
     terrainmap::Point2D* second = &path[1];
-    
+
     for (size_t i = 1; i < path.size(); ++i) {
         terrainmap::Point2D* third = &path[i];
         const terrainmap::Point2D base = lerp(first, *third, 0.5f); // Midpoint of first and third
-        
+
         float factor = 0.5f - static_cast<float>(getCost(map, *second) - getCost(map, base)) / 10.0f;
         const terrainmap::Point2D newPoint = lerp(*second, base, factor);
-        
+
         first = *second; // Second moves to first
         *second = newPoint; // The actual path changes
         second = third; // Third moves to second
@@ -47,4 +47,4 @@ void apply(const terrainmap::TerrainMap& map, uint32_t steps, std::vector<terrai
     }
 }
 
-} // namespace smooth
+}

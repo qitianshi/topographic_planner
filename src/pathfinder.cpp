@@ -132,11 +132,11 @@ static float cellCalcEdgeCost(
 ) {
     const uint8_t cost = map.dataCost[nextPos];
     if (cost == UINT8_MAX) return PF_COST_INFINITY;
-    
+
     const float xyDist = cellCalcXyDist(map, curPos, nextPos);
     const float grad = cellCalcGrad(map, curPos, nextPos, xyDist);
     if (grad >= weights.maxGrad) return PF_COST_INFINITY;
-    
+
     return weights.wgrad * grad + weights.wxyDist * xyDist + weights.wcost * cost;
 }
 
@@ -154,7 +154,7 @@ static bool cellsCreate(
     } catch (...) {
         return false;
     }
-    
+
     cells.startPos = map.getPos(config.start);
     cells.destPos = map.getPos(config.dest);
     return true;
@@ -169,7 +169,7 @@ static void cellsEnqueue(
 ) {
     const float edgeCost = cellCalcEdgeCost(map, config.weights, curPos, nextPos);
     if (!isReachable(edgeCost)) return;
-    
+
     const terrainmap::PhysDist distToCell = cells.dists[curPos] + edgeCost;
     if (distToCell >= cells.dists[nextPos]) return; // Not better
 
@@ -182,7 +182,7 @@ static void cellsEnqueue(
 
     cells.dists[nextPos] = distToCell;
     cells.parents[nextPos] = curPos;
-    
+
     const float distToDest = cellCalcDist(map, config.weights, nextPos, cells.destPos);
     cells.toExplore.push(Cell{nextPos, distToCell + distToDest});
 }
@@ -204,7 +204,7 @@ static void displaySearch(
     size_t npoints = map.getNpoints();
     std::vector<char> buf(npoints + map.npointsY + 1);
     char* head = buf.data();
-    
+
     for (size_t y = 0; y < map.npointsY; ++y) {
         for (size_t x = 0; x < map.npointsX; ++x) {
             size_t pos = y * map.npointsX + x;
@@ -219,7 +219,7 @@ static void displaySearch(
         *head++ = '\n';
     }
     *head++ = '\n';
-    
+
     if (path) {
         for (const auto& point : *path) {
             uint32_t pos = map.getPos(point);
@@ -227,7 +227,7 @@ static void displaySearch(
             buf[pos] = 'O';
         }
     }
-    
+
     fwrite(buf.data(), 1, static_cast<size_t>(head - buf.data()), out);
     if (out != stdout) fflush(out);
 }
@@ -255,17 +255,17 @@ static bool searchInternal(
     while (!cells.toExplore.empty()) {
         Cell closestCell = cells.toExplore.top();
         cells.toExplore.pop();
-        
+
         curPos = closestCell.pos;
-        
+
         if (cells.intree[curPos]) continue;
-        
+
         if (!isReachable(closestCell.pathLen)) {
             return false;
         }
-        
+
         cellsTreeAdd(config, cells, curPos);
-        
+
         if (curPos == cells.destPos) {
             return true;
         }
@@ -326,7 +326,7 @@ static void evalPath(
     float minEdgeCost = FLT_MAX;
     float maxEdgeCost = FLT_MIN;
     const Weights& weights = config.weights;
-    
+
     for (const auto& point : path) {
         uint32_t pos = map.getPos(point);
         terrainmap::GridCoord coord = map.getCoord(pos);
@@ -335,12 +335,12 @@ static void evalPath(
         terrainmap::PhysDist xyDist = cellCalcXyDist(map, prevPos, pos);
         terrainmap::PhysDist grad = cellCalcGrad(map, prevPos, pos, xyDist);
         terrainmap::PhysDist cost = map.dataCost[pos];
-        
+
         terrainmap::PhysDist wxyDist = weights.wxyDist * xyDist;
         terrainmap::PhysDist wgrad = weights.wgrad * grad;
         terrainmap::PhysDist wcost = weights.wcost * cost;
         float dist = cells.dists[pos];
-        
+
         totalDistFromDest += distToDest;
         totalDistFromStart += dist;
         txy += xyDist;
@@ -349,7 +349,7 @@ static void evalPath(
         twxy += wxyDist;
         twg += wgrad;
         twc += wcost;
-        
+
         if (edgeCost < minEdgeCost) {
             minEdgePoint = point;
             minEdgeCost = edgeCost;
@@ -359,7 +359,7 @@ static void evalPath(
             maxEdgeCost = edgeCost;
         }
         prevPos = pos;
-        
+
         fprintf(out,
             "%6d (%6d, %6d) (%4.1f, %4.1f) (xy=%6.2f, g=%6.2f, c=%7.2f) "
             "(wxy=%6.2f, wg=%6.2f. wc=%6.2f) (ec=%6.2f, d=%6.2f, h=%6.2f)\n",
@@ -367,7 +367,7 @@ static void evalPath(
             grad, cost, wxyDist, wgrad, wcost, edgeCost, dist, distToDest
         );
     }
-    
+
     float pathLen = static_cast<float>(path.size());
     totalDistFromStart /= pathLen;
     totalDistFromDest /= pathLen;
@@ -385,7 +385,7 @@ static void evalPath(
     fprintf(out, "ratio src/dest : %7.2f\n", totalDistFromStart / totalDistFromDest);
     fprintf(out, "avg (xy, g, c) : (xy= %6.2f, g= %6.2f, c= %6.2f)\n", txy, tg, tc);
     fprintf(out, "avg (wxy,wg,wc): (wxy=%6.2f, wg=%6.2f. wc=%6.2f)\n", twxy, twg, twc);
-    
+
     if (out != stdout) fflush(out);
 }
 
@@ -398,17 +398,17 @@ Result search(
     if (!cellsCreate(map, config, cells)) {
         return Result::ErrMem;
     }
-    
+
     if (!searchInternal(map, config, cells)) {
         visualUpdateFinished(config.extraOut);
         return Result::NoPath;
     }
-    
+
     if (!createPath(map, cells.startPos, cells.destPos, cells.parents, path)) {
         visualUpdateFinished(config.extraOut);
         return Result::ErrMem;
     }
-    
+
     displaySearch(map, &config, cells, &path);
     evalPath(map, config, cells, path);
     visualUpdateFinished(config.extraOut);
@@ -424,4 +424,4 @@ const char* resultToStr(Result res) {
     }
 }
 
-} // namespace pathfinder
+}

@@ -1,5 +1,4 @@
-#ifndef SMOOTH_HPP
-#define SMOOTH_HPP
+#pragma once
 
 #include "terrainmap.hpp"
 #include <vector>
@@ -13,6 +12,4 @@ void step(const terrainmap::TerrainMap& map, std::vector<terrainmap::Point2D>& p
 
 void apply(const terrainmap::TerrainMap& map, uint32_t steps, std::vector<terrainmap::Point2D>& path);
 
-} // namespace smooth
-
-#endif // SMOOTH_HPP
+}

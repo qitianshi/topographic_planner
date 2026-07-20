@@ -1,5 +1,4 @@
-#ifndef PATHFINDER_HPP
-#define PATHFINDER_HPP
+#pragma once
 
 #include "terrainmap.hpp"
 #include <vector>
@@ -66,6 +65,4 @@ bool createPath(
     std::vector<terrainmap::Point2D>& path
 );
 
-} // namespace pathfinder
-
-#endif // PATHFINDER_HPP
+}

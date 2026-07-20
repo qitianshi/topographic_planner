@@ -21,9 +21,9 @@ struct GridCoord {
 /* Map of the terrain to navigate, containing multiple data layers */
 struct TerrainMap {
     // Metadata
-    uint32_t npointsX = 0;         // Number of data points along x-axis
-    uint32_t npointsY = 0;         // Number of data points along y-axis
-    PhysDist resolution = 0.0f;    // Physical distance (e.g., meters) per point
+    uint32_t npointsX = 0;      // Number of data points along x-axis
+    uint32_t npointsY = 0;      // Number of data points along y-axis
+    PhysDist resolution = 0.0f; // Physical distance (e.g., meters) per point
 
     // Data arrays
     // All array lengths are (npointsX * npointsY).
@@ -44,13 +44,13 @@ struct TerrainMap {
 
     bool contains(uint32_t pos) const;
 
-    uint32_t getPos(const Point2D& p) const;
+    uint32_t getPos(const Point2D &p) const;
 
     GridCoord getCoord(uint32_t pos) const;
 
-    Point2D toPoint(const GridCoord& coord) const;
+    Point2D toPoint(const GridCoord &coord) const;
 
     bool isDiagonal(uint32_t curPos, uint32_t nextPos) const;
 };
 
-}
+} // namespace terrainmap

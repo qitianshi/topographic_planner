@@ -1,30 +1,30 @@
 #pragma once
 
-#include "terrainmap.hpp"
 #include "pathfinder.hpp"
+#include "terrainmap.hpp"
 #include <string>
 #include <vector>
 
 namespace io {
 
 enum class IoError {
-    Ok,              // OK
-    File,            // System file I/O error
-    Malformed,       // Malformed file (incorrect format)
-    Dimension,       // Incorrect dimensions (for data load)
-    Npoints,         // Number of points loaded does not match the expected
-    Memory,          // Failed memory allocation
-    VarNotFound,     // An environment variable was not found
-    VarFormat,       // invalid format for value
-    VarOutOfRange    // value for an environment variable was out of range
+    Ok,           // OK
+    File,         // System file I/O error
+    Malformed,    // Malformed file (incorrect format)
+    Dimension,    // Incorrect dimensions (for data load)
+    Npoints,      // Number of points loaded does not match the expected
+    Memory,       // Failed memory allocation
+    VarNotFound,  // An environment variable was not found
+    VarFormat,    // invalid format for value
+    VarOutOfRange // value for an environment variable was out of range
 };
 
-IoError strToUint32(const std::string& s, uint32_t& val);
-IoError getenvUint32(const char* name, uint32_t& val);
+IoError strToUint32(const std::string &s, uint32_t &val);
+IoError getenvUint32(const char *name, uint32_t &val);
 
-const char* errorToStr(IoError err);
-IoError loadConfig(pathfinder::Config& config);
-void loadSmoothSteps(uint32_t& smoothSteps);
+const char *errorToStr(IoError err);
+IoError loadConfig(pathfinder::Config &config);
+void loadSmoothSteps(uint32_t &smoothSteps);
 
 /**
  * Loads the map from a config file and a data file.
@@ -55,7 +55,7 @@ void loadSmoothSteps(uint32_t& smoothSteps);
  *
  * @param map Output reference to the map.
  */
-IoError loadMap(terrainmap::TerrainMap& map);
+IoError loadMap(terrainmap::TerrainMap &map);
 
 /**
  * Stores a terrain path to an output file.
@@ -68,6 +68,6 @@ IoError loadMap(terrainmap::TerrainMap& map);
  * 0.3,0.4
  * ```
  */
-IoError storePath(const std::vector<terrainmap::Point2D>& path);
+IoError storePath(const std::vector<terrainmap::Point2D> &path);
 
-}
+} // namespace io

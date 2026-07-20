@@ -1,8 +1,8 @@
 # Define the static pathfinder library
 add_library(pathfinder_lib STATIC
-    map.cpp
     pathfinder.cpp
     smooth.cpp
+    terrainmap.cpp
 )
 
 # Configure include directories

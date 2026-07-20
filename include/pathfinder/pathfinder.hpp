@@ -1,17 +1,17 @@
 #pragma once
 
 #include "terrainmap.hpp"
-#include <vector>
 #include <cstdint>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 namespace pathfinder {
 
 struct ExtraOut {
-    FILE* pathEval = nullptr;
-    FILE* searchDisplay = nullptr;
-    FILE* visual = nullptr; // visualize search
+    FILE *pathEval = nullptr;
+    FILE *searchDisplay = nullptr;
+    FILE *visual = nullptr; // visualize search
 };
 
 struct Weights {
@@ -30,9 +30,9 @@ struct Config {
 };
 
 enum class Result {
-    FoundPath,   // found a path from start to destination
-    NoPath,      // could not find a path from start to destination
-    ErrMem       // failed to find a path due to a memory allocation error
+    FoundPath, // found a path from start to destination
+    NoPath,    // could not find a path from start to destination
+    ErrMem     // failed to find a path due to a memory allocation error
 };
 
 enum class VisualUpdateType : unsigned char {
@@ -49,20 +49,20 @@ struct VisualUpdate {
     VisualUpdateType type;
 };
 
-const char* resultToStr(Result res);
+const char *resultToStr(Result res);
 
 Result search(
-    const terrainmap::TerrainMap& map,
-    Config& config,
-    std::vector<terrainmap::Point2D>& path
+    const terrainmap::TerrainMap &map,
+    Config &config,
+    std::vector<terrainmap::Point2D> &path
 );
 
 bool createPath(
-    const terrainmap::TerrainMap& map,
+    const terrainmap::TerrainMap &map,
     uint32_t startPos,
     uint32_t destPos,
-    const std::vector<uint32_t>& parents,
-    std::vector<terrainmap::Point2D>& path
+    const std::vector<uint32_t> &parents,
+    std::vector<terrainmap::Point2D> &path
 );
 
-}
+} // namespace pathfinder

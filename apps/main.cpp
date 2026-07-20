@@ -1,18 +1,18 @@
+#include <cstdlib>
 #include <iostream>
 #include <vector>
-#include <cstdlib>
 
 #include "io.hpp"
-#include "terrainmap.hpp"
 #include "pathfinder.hpp"
 #include "smooth.hpp"
+#include "terrainmap.hpp"
 
 void reportError(io::IoError err) {
-    std::cerr << "pathfinder exited with error " << io::errorToStr(err)
-              << " (" << static_cast<int>(err) << ")\n";
+    std::cerr << "pathfinder exited with error " << io::errorToStr(err) << " ("
+              << static_cast<int>(err) << ")\n";
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     pathfinder::Config pfConfig;
     terrainmap::TerrainMap map;
     std::vector<terrainmap::Point2D> path;

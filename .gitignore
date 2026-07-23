@@ -9,8 +9,10 @@ data/
 # ==========================================
 devel/
 logs/
+log/
 build/
 Build/
+install/
 build-*/
 build_isolated/
 devel_isolated/

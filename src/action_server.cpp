@@ -11,18 +11,19 @@ using std::placeholders::_2;
 
 namespace topographic_planner {
 
-TopographicPlannerActionServer::TopographicPlannerActionServer(
+TopographicPlannerNode::TopographicPlannerNode(
     const rclcpp::NodeOptions &options
 )
     : nav2_util::LifecycleNode("topographic_planner_node", "", options) {}
 
-TopographicPlannerActionServer::~TopographicPlannerActionServer() = default;
+TopographicPlannerNode::~TopographicPlannerNode() = default;
 
-nav2_util::CallbackReturn TopographicPlannerActionServer::on_configure(
+nav2_util::CallbackReturn TopographicPlannerNode::on_configure(
     const rclcpp_lifecycle::State & /*state*/
 ) {
     RCLCPP_INFO(get_logger(), "Configuring topographic_planner_node...");
 
+    // Default param values (from experimentation)
     nav2_util::declare_parameter_if_not_declared(
         this, "resolution", rclcpp::ParameterValue(0.1)
     );
@@ -55,39 +56,79 @@ nav2_util::CallbackReturn TopographicPlannerActionServer::on_configure(
 
     get_parameter("resolution", resolution_);
     get_parameter("smooth_steps", smooth_steps_);
-    get_parameter("weight_grad", weight_grad_);
-    get_parameter("weight_xy_dist", weight_xy_dist_);
-    get_parameter("weight_cost", weight_cost_);
-    get_parameter("weight_heuristic", weight_heuristic_);
-    get_parameter("max_gradient", max_gradient_);
-    get_parameter("elevation_layer_name", elevation_layer_);
-    get_parameter("traversability_layer_name", traversability_layer_);
+    get_parameter("weight_grad", config_.weights.grad);
+    get_parameter("weight_xy_dist", config_.weights.xyDist);
+    get_parameter("weight_cost", config_.weights.cost);
+    get_parameter("weight_heuristic", config_.weights.heuristic);
+    get_parameter("max_gradient", config_.weights.maxGrad);
+    get_parameter("elevation_layer_name", config_.elevation_layer);
+    get_parameter("traversability_layer_name", config_.traversability_layer);
 
+    // tf2 buffer and listener for transforming start/goal poses.
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
+    // Map subscription
     map_sub_ = create_subscription<grid_map_msgs::msg::GridMap>(
         "grid_map",
         rclcpp::QoS(1).transient_local(),
-        std::bind(&TopographicPlannerActionServer::map_callback, this, _1)
+        std::bind(&TopographicPlannerNode::map_callback, this, _1)
     );
 
+    // Search tree debug publisher
     marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
         "search_tree", 10
     );
 
+    config_.visualization_callback = [this](
+                                         const grid_map::Position &p1,
+                                         const grid_map::Position &p2,
+                                         int type
+                                     ) {
+        (void)type; // just lines for now
+        if (!marker_pub_ || marker_pub_->get_subscription_count() == 0) {
+            return;
+        }
+        visualization_msgs::msg::MarkerArray marker_array;
+        visualization_msgs::msg::Marker marker;
+        marker.header.frame_id = map_frame_id_;
+        marker.header.stamp = now();
+        marker.ns = "search_tree";
+        marker.id = 0; // or increment
+        marker.type = visualization_msgs::msg::Marker::LINE_LIST;
+        marker.action = visualization_msgs::msg::Marker::ADD;
+        marker.scale.x = 0.05;
+        marker.color.a = 1.0;
+        marker.color.r = 0.0;
+        marker.color.g = 1.0;
+        marker.color.b = 0.0;
+
+        geometry_msgs::msg::Point pt1, pt2;
+        pt1.x = p1.x();
+        pt1.y = p1.y();
+        pt1.z = 0.0;
+        pt2.x = p2.x();
+        pt2.y = p2.y();
+        pt2.z = 0.0;
+        marker.points.push_back(pt1);
+        marker.points.push_back(pt2);
+        marker_array.markers.push_back(marker);
+        marker_pub_->publish(marker_array);
+    };
+
+    // Compute path action
     action_server_ = rclcpp_action::create_server<ComputePathToPose>(
         this,
         "compute_path_to_pose",
-        std::bind(&TopographicPlannerActionServer::handle_goal, this, _1, _2),
-        std::bind(&TopographicPlannerActionServer::handle_cancel, this, _1),
-        std::bind(&TopographicPlannerActionServer::handle_accepted, this, _1)
+        std::bind(&TopographicPlannerNode::handle_goal, this, _1, _2),
+        std::bind(&TopographicPlannerNode::handle_cancel, this, _1),
+        std::bind(&TopographicPlannerNode::handle_accepted, this, _1)
     );
 
     return nav2_util::CallbackReturn::SUCCESS;
 }
 
-nav2_util::CallbackReturn TopographicPlannerActionServer::on_activate(
+nav2_util::CallbackReturn TopographicPlannerNode::on_activate(
     const rclcpp_lifecycle::State & /*state*/
 ) {
     RCLCPP_INFO(get_logger(), "Activating topographic_planner_node...");
@@ -95,7 +136,7 @@ nav2_util::CallbackReturn TopographicPlannerActionServer::on_activate(
     return nav2_util::CallbackReturn::SUCCESS;
 }
 
-nav2_util::CallbackReturn TopographicPlannerActionServer::on_deactivate(
+nav2_util::CallbackReturn TopographicPlannerNode::on_deactivate(
     const rclcpp_lifecycle::State & /*state*/
 ) {
     RCLCPP_INFO(get_logger(), "Deactivating topographic_planner_node...");
@@ -103,7 +144,7 @@ nav2_util::CallbackReturn TopographicPlannerActionServer::on_deactivate(
     return nav2_util::CallbackReturn::SUCCESS;
 }
 
-nav2_util::CallbackReturn TopographicPlannerActionServer::on_cleanup(
+nav2_util::CallbackReturn TopographicPlannerNode::on_cleanup(
     const rclcpp_lifecycle::State & /*state*/
 ) {
     RCLCPP_INFO(get_logger(), "Cleaning up topographic_planner_node...");
@@ -115,16 +156,17 @@ nav2_util::CallbackReturn TopographicPlannerActionServer::on_cleanup(
     return nav2_util::CallbackReturn::SUCCESS;
 }
 
-nav2_util::CallbackReturn TopographicPlannerActionServer::on_shutdown(
+nav2_util::CallbackReturn TopographicPlannerNode::on_shutdown(
     const rclcpp_lifecycle::State & /*state*/
 ) {
     RCLCPP_INFO(get_logger(), "Shutting down topographic_planner_node...");
     return nav2_util::CallbackReturn::SUCCESS;
 }
 
-void TopographicPlannerActionServer::map_callback(
+void TopographicPlannerNode::map_callback(
     const grid_map_msgs::msg::GridMap::SharedPtr msg
 ) {
+    // Updates the map cache with a mutex.
     std::lock_guard<std::mutex> lock(map_mutex_);
     if (!cached_map_) {
         cached_map_ = std::make_shared<grid_map::GridMap>();
@@ -133,35 +175,74 @@ void TopographicPlannerActionServer::map_callback(
     map_frame_id_ = msg->header.frame_id;
 }
 
-rclcpp_action::GoalResponse TopographicPlannerActionServer::handle_goal(
+rclcpp_action::GoalResponse TopographicPlannerNode::handle_goal(
     const rclcpp_action::GoalUUID & /*uuid*/,
     std::shared_ptr<const ComputePathToPose::Goal> /*goal*/
 ) {
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
-rclcpp_action::CancelResponse TopographicPlannerActionServer::handle_cancel(
+rclcpp_action::CancelResponse TopographicPlannerNode::handle_cancel(
     const std::shared_ptr<GoalHandleComputePathToPose> /*goal_handle*/
 ) {
     return rclcpp_action::CancelResponse::ACCEPT;
 }
 
-void TopographicPlannerActionServer::handle_accepted(
+void TopographicPlannerNode::handle_accepted(
     const std::shared_ptr<GoalHandleComputePathToPose> goal_handle
 ) {
     std::thread{
-        std::bind(&TopographicPlannerActionServer::execute, this, _1),
+        std::bind(&TopographicPlannerNode::execute, this, _1),
         goal_handle
     }
         .detach();
 }
 
-void TopographicPlannerActionServer::execute(
+bool TopographicPlannerNode::transform_pose_to_frame(
+    const geometry_msgs::msg::PoseStamped &input_pose,
+    const std::string &target_frame,
+    const std::string &pose_name,
+    geometry_msgs::msg::PoseStamped &output_pose
+) {
+    try {
+
+        if (!tf_buffer_->canTransform(
+                target_frame,
+                input_pose.header.frame_id,
+                tf2::TimePointZero,
+                tf2::durationFromSec(1.0)
+            )) {
+            RCLCPP_ERROR(
+                get_logger(),
+                "Could not transform %s to map frame '%s' from frame '%s'",
+                pose_name.c_str(),
+                target_frame.c_str(),
+                input_pose.header.frame_id.c_str()
+            );
+            return false;
+        }
+
+        tf_buffer_->transform(input_pose, output_pose, target_frame);
+        return true;
+
+    } catch (const tf2::TransformException &ex) {
+        RCLCPP_ERROR(
+            get_logger(),
+            "TF exception transforming %s: %s",
+            pose_name.c_str(),
+            ex.what()
+        );
+        return false;
+    }
+}
+
+void TopographicPlannerNode::execute(
     const std::shared_ptr<GoalHandleComputePathToPose> goal_handle
 ) {
     auto result = std::make_shared<ComputePathToPose::Result>();
     auto goal = goal_handle->get_goal();
 
+    // Makes a stable copy of the most recent cached map.
     std::shared_ptr<grid_map::GridMap> map_copy;
     std::string map_frame;
     {
@@ -175,103 +256,25 @@ void TopographicPlannerActionServer::execute(
         map_frame = map_frame_id_;
     }
 
+    // Tries to transform poses to the map frame, or aborts if failed.
     geometry_msgs::msg::PoseStamped start_pose, goal_pose;
-
-    // transform start
-    try {
-        if (!tf_buffer_->canTransform(
-                map_frame,
-                goal->start.header.frame_id,
-                tf2::TimePointZero,
-                tf2::durationFromSec(1.0)
-            )) {
-            RCLCPP_ERROR(
-                get_logger(), "Could not transform start to map frame"
-            );
-            result->error_code = ComputePathToPose::Result::TF_ERROR;
-            goal_handle->abort(result);
-            return;
-        }
-        tf_buffer_->transform(goal->start, start_pose, map_frame);
-    } catch (tf2::TransformException &ex) {
-        RCLCPP_ERROR(get_logger(), "TF exception: %s", ex.what());
+    if (!transform_pose_to_frame(goal->start, map_frame, "start", start_pose) ||
+        !transform_pose_to_frame(goal->goal, map_frame, "goal", goal_pose)) {
         result->error_code = ComputePathToPose::Result::TF_ERROR;
         goal_handle->abort(result);
         return;
     }
 
-    // transform goal
-    try {
-        if (!tf_buffer_->canTransform(
-                map_frame,
-                goal->goal.header.frame_id,
-                tf2::TimePointZero,
-                tf2::durationFromSec(1.0)
-            )) {
-            RCLCPP_ERROR(get_logger(), "Could not transform goal to map frame");
-            result->error_code = ComputePathToPose::Result::TF_ERROR;
-            goal_handle->abort(result);
-            return;
-        }
-        tf_buffer_->transform(goal->goal, goal_pose, map_frame);
-    } catch (tf2::TransformException &ex) {
-        RCLCPP_ERROR(get_logger(), "TF exception: %s", ex.what());
-        result->error_code = ComputePathToPose::Result::TF_ERROR;
-        goal_handle->abort(result);
-        return;
-    }
-
-    pathfinder::Config config;
-    config.weights.wxyDist = weight_xy_dist_;
-    config.weights.wgrad = weight_grad_;
-    config.weights.wcost = weight_cost_;
-    config.weights.wheuristic = weight_heuristic_;
-    config.weights.maxGrad = max_gradient_;
-    config.elevation_layer = elevation_layer_;
-    config.traversability_layer = traversability_layer_;
-
-    config.start.x() = start_pose.pose.position.x;
-    config.start.y() = start_pose.pose.position.y;
-    config.dest.x() = goal_pose.pose.position.x;
-    config.dest.y() = goal_pose.pose.position.y;
-
-    if (marker_pub_->get_subscription_count() > 0) {
-        config.visualization_callback = [this, map_frame](
-                                            const grid_map::Position &p1,
-                                            const grid_map::Position &p2,
-                                            int type
-                                        ) {
-            (void)type; // just lines for now
-            visualization_msgs::msg::MarkerArray marker_array;
-            visualization_msgs::msg::Marker marker;
-            marker.header.frame_id = map_frame;
-            marker.header.stamp = now();
-            marker.ns = "search_tree";
-            marker.id = 0; // or increment
-            marker.type = visualization_msgs::msg::Marker::LINE_LIST;
-            marker.action = visualization_msgs::msg::Marker::ADD;
-            marker.scale.x = 0.05;
-            marker.color.a = 1.0;
-            marker.color.r = 0.0;
-            marker.color.g = 1.0;
-            marker.color.b = 0.0;
-
-            geometry_msgs::msg::Point pt1, pt2;
-            pt1.x = p1.x();
-            pt1.y = p1.y();
-            pt1.z = 0.0;
-            pt2.x = p2.x();
-            pt2.y = p2.y();
-            pt2.z = 0.0;
-            marker.points.push_back(pt1);
-            marker.points.push_back(pt2);
-            marker_array.markers.push_back(marker);
-            marker_pub_->publish(marker_array);
-        };
-    }
+    grid_map::Position start_pos(
+        start_pose.pose.position.x, start_pose.pose.position.y
+    );
+    grid_map::Position dest_pos(
+        goal_pose.pose.position.x, goal_pose.pose.position.y
+    );
 
     std::vector<grid_map::Position> path;
-    pathfinder::Result pf_result = pathfinder::search(*map_copy, config, path);
+    pathfinder::Result pf_result =
+        pathfinder::search(*map_copy, config_, start_pos, dest_pos, path);
 
     if (pf_result != pathfinder::Result::FoundPath) {
         RCLCPP_ERROR(

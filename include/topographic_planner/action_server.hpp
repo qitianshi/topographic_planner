@@ -12,20 +12,21 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
+#include "topographic_planner/pathfinder.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 
 namespace topographic_planner {
 
-class TopographicPlannerActionServer : public nav2_util::LifecycleNode {
+class TopographicPlannerNode : public nav2_util::LifecycleNode {
   public:
     using ComputePathToPose = nav2_msgs::action::ComputePathToPose;
     using GoalHandleComputePathToPose =
         rclcpp_action::ServerGoalHandle<ComputePathToPose>;
 
-    explicit TopographicPlannerActionServer(
+    explicit TopographicPlannerNode(
         const rclcpp::NodeOptions &options = rclcpp::NodeOptions()
     );
-    ~TopographicPlannerActionServer() override;
+    ~TopographicPlannerNode() override;
 
   protected:
     nav2_util::CallbackReturn on_configure(
@@ -68,6 +69,14 @@ class TopographicPlannerActionServer : public nav2_util::LifecycleNode {
 
     void map_callback(const grid_map_msgs::msg::GridMap::SharedPtr msg);
 
+    /* Transforms a pose to a target frame. */
+    bool transform_pose_to_frame(
+        const geometry_msgs::msg::PoseStamped &input_pose,
+        const std::string &target_frame,
+        const std::string &pose_name,
+        geometry_msgs::msg::PoseStamped &output_pose
+    );
+
     // Node state
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
@@ -82,16 +91,10 @@ class TopographicPlannerActionServer : public nav2_util::LifecycleNode {
     std::shared_ptr<grid_map::GridMap> cached_map_;
     std::string map_frame_id_;
 
-    // Parameters
+    // Configuration & parameters
+    pathfinder::Config config_;
     float resolution_;
     int smooth_steps_;
-    float weight_grad_;
-    float weight_xy_dist_;
-    float weight_cost_;
-    float weight_heuristic_;
-    float max_gradient_;
-    std::string elevation_layer_;
-    std::string traversability_layer_;
 };
 
 } // namespace topographic_planner

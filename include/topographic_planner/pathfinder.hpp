@@ -9,17 +9,15 @@
 namespace pathfinder {
 
 struct Weights {
-    float wxyDist;
-    float wgrad;
-    float wcost;
-    float wheuristic;
+    float xyDist;
+    float grad;
+    float cost;
+    float heuristic;
     float maxGrad;
 };
 
 struct Config {
     Weights weights;
-    grid_map::Position start;
-    grid_map::Position dest;
     std::string elevation_layer;
     std::string traversability_layer;
     std::function<
@@ -40,6 +38,8 @@ const char *resultToStr(Result res);
 Result search(
     const grid_map::GridMap &map,
     const Config &config,
+    const grid_map::Position &start,
+    const grid_map::Position &dest,
     std::vector<grid_map::Position> &path
 );
 

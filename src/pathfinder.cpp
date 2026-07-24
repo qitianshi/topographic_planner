@@ -89,7 +89,7 @@ static float cellCalcDist(
     float dy = std::abs(curPoint.y() - nextPoint.y());
     float dx = std::abs(curPoint.x() - nextPoint.x());
     float octileDist = std::max(dy, dx) + (PF_SQRT_2 - 1.0f) * std::min(dy, dx);
-    return octileDist * weights.wheuristic;
+    return octileDist * weights.heuristic;
 }
 
 static float cellCalcEdgeCost(
@@ -110,20 +110,21 @@ static float cellCalcEdgeCost(
     if (grad >= config.weights.maxGrad)
         return PF_COST_INFINITY;
 
-    return config.weights.wgrad * grad + config.weights.wxyDist * xyDist +
-           config.weights.wcost * cost;
+    return config.weights.grad * grad + config.weights.xyDist * xyDist +
+           config.weights.cost * cost;
 }
 
-static bool cellsCreate(
+static Result cellsCreate(
     const grid_map::GridMap &map,
-    const Config &config,
+    const grid_map::Position &start,
+    const grid_map::Position &dest,
     Cells &cells
 ) {
-    if (!map.getIndex(config.start, cells.startIndex))
-        return false;
-    if (!map.getIndex(config.dest, cells.destIndex))
-        return false;
-    return true;
+    if (!map.getIndex(start, cells.startIndex))
+        return Result::StartOutsideMap;
+    if (!map.getIndex(dest, cells.destIndex))
+        return Result::GoalOutsideMap;
+    return Result::FoundPath;
 }
 
 static void cellsEnqueue(
@@ -252,11 +253,14 @@ bool createPath(
 Result search(
     const grid_map::GridMap &map,
     const Config &config,
+    const grid_map::Position &start,
+    const grid_map::Position &dest,
     std::vector<grid_map::Position> &path
 ) {
     Cells cells;
-    if (!cellsCreate(map, config, cells)) {
-        return Result::StartOutsideMap; // Assuming issue is start/dest pos
+    Result create_res = cellsCreate(map, start, dest, cells);
+    if (create_res != Result::FoundPath) {
+        return create_res;
     }
 
     if (!searchInternal(map, config, cells)) {

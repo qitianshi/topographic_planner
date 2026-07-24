@@ -5,12 +5,12 @@ IndentWidth: 4
 MaxEmptyLinesToKeep: 2
 
 AlignAfterOpenBracket: BlockIndent
-# PackArguments:
-#   BinPack: OnePerLine
-# PackParameters:
-#   BinPack: OnePerLine
 BinPackArguments: false
 BinPackParameters: OnePerLine
+AllowAllParametersOfDeclarationOnNextLine: false
+
+ReturnTypeBreakingStyle: ExceptShortType
+PenaltyReturnTypeOnItsOwnLine: 1000
 
 AlignTrailingComments:
   OverEmptyLines: 0

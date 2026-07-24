@@ -28,16 +28,25 @@ class TopographicPlannerActionServer : public nav2_util::LifecycleNode {
     ~TopographicPlannerActionServer() override;
 
   protected:
-    nav2_util::CallbackReturn
-    on_configure(const rclcpp_lifecycle::State &state) override;
-    nav2_util::CallbackReturn
-    on_activate(const rclcpp_lifecycle::State &state) override;
-    nav2_util::CallbackReturn
-    on_deactivate(const rclcpp_lifecycle::State &state) override;
-    nav2_util::CallbackReturn
-    on_cleanup(const rclcpp_lifecycle::State &state) override;
-    nav2_util::CallbackReturn
-    on_shutdown(const rclcpp_lifecycle::State &state) override;
+    nav2_util::CallbackReturn on_configure(
+        const rclcpp_lifecycle::State &state
+    ) override;
+
+    nav2_util::CallbackReturn on_activate(
+        const rclcpp_lifecycle::State &state
+    ) override;
+
+    nav2_util::CallbackReturn on_deactivate(
+        const rclcpp_lifecycle::State &state
+    ) override;
+
+    nav2_util::CallbackReturn on_cleanup(
+        const rclcpp_lifecycle::State &state
+    ) override;
+
+    nav2_util::CallbackReturn on_shutdown(
+        const rclcpp_lifecycle::State &state
+    ) override;
 
   private:
     rclcpp_action::GoalResponse handle_goal(
@@ -52,8 +61,10 @@ class TopographicPlannerActionServer : public nav2_util::LifecycleNode {
     void handle_accepted(
         const std::shared_ptr<GoalHandleComputePathToPose> goal_handle
     );
-    void
-    execute(const std::shared_ptr<GoalHandleComputePathToPose> goal_handle);
+
+    void execute(
+        const std::shared_ptr<GoalHandleComputePathToPose> goal_handle
+    );
 
     void map_callback(const grid_map_msgs::msg::GridMap::SharedPtr msg);
 

@@ -18,8 +18,9 @@ TopographicPlannerActionServer::TopographicPlannerActionServer(
 
 TopographicPlannerActionServer::~TopographicPlannerActionServer() = default;
 
-nav2_util::CallbackReturn TopographicPlannerActionServer::
-    on_configure(const rclcpp_lifecycle::State & /*state*/) {
+nav2_util::CallbackReturn TopographicPlannerActionServer::on_configure(
+    const rclcpp_lifecycle::State & /*state*/
+) {
     RCLCPP_INFO(get_logger(), "Configuring topographic_planner_node...");
 
     nav2_util::declare_parameter_if_not_declared(
@@ -86,22 +87,25 @@ nav2_util::CallbackReturn TopographicPlannerActionServer::
     return nav2_util::CallbackReturn::SUCCESS;
 }
 
-nav2_util::CallbackReturn TopographicPlannerActionServer::
-    on_activate(const rclcpp_lifecycle::State & /*state*/) {
+nav2_util::CallbackReturn TopographicPlannerActionServer::on_activate(
+    const rclcpp_lifecycle::State & /*state*/
+) {
     RCLCPP_INFO(get_logger(), "Activating topographic_planner_node...");
     marker_pub_->on_activate();
     return nav2_util::CallbackReturn::SUCCESS;
 }
 
-nav2_util::CallbackReturn TopographicPlannerActionServer::
-    on_deactivate(const rclcpp_lifecycle::State & /*state*/) {
+nav2_util::CallbackReturn TopographicPlannerActionServer::on_deactivate(
+    const rclcpp_lifecycle::State & /*state*/
+) {
     RCLCPP_INFO(get_logger(), "Deactivating topographic_planner_node...");
     marker_pub_->on_deactivate();
     return nav2_util::CallbackReturn::SUCCESS;
 }
 
-nav2_util::CallbackReturn TopographicPlannerActionServer::
-    on_cleanup(const rclcpp_lifecycle::State & /*state*/) {
+nav2_util::CallbackReturn TopographicPlannerActionServer::on_cleanup(
+    const rclcpp_lifecycle::State & /*state*/
+) {
     RCLCPP_INFO(get_logger(), "Cleaning up topographic_planner_node...");
     action_server_.reset();
     map_sub_.reset();
@@ -111,8 +115,9 @@ nav2_util::CallbackReturn TopographicPlannerActionServer::
     return nav2_util::CallbackReturn::SUCCESS;
 }
 
-nav2_util::CallbackReturn TopographicPlannerActionServer::
-    on_shutdown(const rclcpp_lifecycle::State & /*state*/) {
+nav2_util::CallbackReturn TopographicPlannerActionServer::on_shutdown(
+    const rclcpp_lifecycle::State & /*state*/
+) {
     RCLCPP_INFO(get_logger(), "Shutting down topographic_planner_node...");
     return nav2_util::CallbackReturn::SUCCESS;
 }

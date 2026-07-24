@@ -6,8 +6,11 @@
 namespace smooth {
 
 /* Interpolate two points by a factor 'c' */
-static grid_map::Position
-lerp(const grid_map::Position &a, const grid_map::Position &b, float c) {
+static grid_map::Position lerp(
+    const grid_map::Position &a,
+    const grid_map::Position &b,
+    float c
+) {
     if (c < 0.0f)
         c = 0.0f;
     if (c > 1.0f)
@@ -16,8 +19,10 @@ lerp(const grid_map::Position &a, const grid_map::Position &b, float c) {
 }
 
 /* Calculate the cost at a particular point in the map */
-static float
-getCost(const grid_map::GridMap &map, const grid_map::Position &point) {
+static float getCost(
+    const grid_map::GridMap &map,
+    const grid_map::Position &point
+) {
     if (!map.isInside(point)) {
         return 255.0f; // High cost outside
     }

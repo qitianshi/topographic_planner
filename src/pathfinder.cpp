@@ -20,8 +20,10 @@ struct IndexHash {
     }
 };
 struct IndexEqual {
-    bool
-    operator()(const grid_map::Index &lhs, const grid_map::Index &rhs) const {
+    bool operator()(
+        const grid_map::Index &lhs,
+        const grid_map::Index &rhs
+    ) const {
         return lhs(0) == rhs(0) && lhs(1) == rhs(1);
     }
 };
@@ -112,8 +114,11 @@ static float cellCalcEdgeCost(
            config.weights.wcost * cost;
 }
 
-static bool
-cellsCreate(const grid_map::GridMap &map, const Config &config, Cells &cells) {
+static bool cellsCreate(
+    const grid_map::GridMap &map,
+    const Config &config,
+    Cells &cells
+) {
     if (!map.getIndex(config.start, cells.startIndex))
         return false;
     if (!map.getIndex(config.dest, cells.destIndex))
@@ -166,7 +171,9 @@ static void cellsTreeAdd(
 }
 
 static bool searchInternal(
-    const grid_map::GridMap &map, const Config &config, Cells &cells
+    const grid_map::GridMap &map,
+    const Config &config,
+    Cells &cells
 ) {
     grid_map::Index curIndex = cells.startIndex;
     cells.parents[curIndex] = curIndex;

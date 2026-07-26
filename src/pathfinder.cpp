@@ -1,4 +1,5 @@
 #include "topographic_planner/pathfinder.hpp"
+
 #include <algorithm>
 #include <cassert>
 #include <cfloat>

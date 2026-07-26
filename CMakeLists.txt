@@ -22,7 +22,7 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
-# Core library (framework agnostic, only depends on grid_map_core)
+# Core library
 add_library(topographic_planner_core STATIC
   src/pathfinder.cpp
   src/smooth.cpp

@@ -1,4 +1,5 @@
 #include "topographic_planner/smooth.hpp"
+
 #include <cassert>
 #include <cmath>
 #include <iostream>

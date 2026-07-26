@@ -2,9 +2,9 @@
 #include "topographic_planner/pathfinder.hpp"
 #include "topographic_planner/smooth.hpp"
 
-#include "nav2_util/geometry_utils.hpp"
-#include "nav2_util/node_utils.hpp"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include <nav2_util/geometry_utils.hpp>
+#include <nav2_util/node_utils.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -265,6 +265,7 @@ void TopographicPlannerNode::execute(
         return;
     }
 
+    // Converts ROS pose to Position for easier maths.
     grid_map::Position start_pos(
         start_pose.pose.position.x, start_pose.pose.position.y
     );
@@ -272,6 +273,7 @@ void TopographicPlannerNode::execute(
         goal_pose.pose.position.x, goal_pose.pose.position.y
     );
 
+    // Performs search.
     std::vector<grid_map::Position> path;
     pathfinder::Result pf_result =
         pathfinder::search(*map_copy, config_, start_pos, dest_pos, path);

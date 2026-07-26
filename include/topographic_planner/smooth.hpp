@@ -1,7 +1,8 @@
 #pragma once
 
-#include <cstdint>
 #include <grid_map_core/grid_map_core.hpp>
+
+#include <cstdint>
 #include <vector>
 
 namespace smooth {

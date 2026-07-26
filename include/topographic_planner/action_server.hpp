@@ -1,19 +1,20 @@
 #pragma once
 
+#include "topographic_planner/pathfinder.hpp"
+
+#include <grid_map_core/grid_map_core.hpp>
+#include <grid_map_ros/grid_map_ros.hpp>
+#include <nav2_msgs/action/compute_path_to_pose.hpp>
+#include <nav2_util/lifecycle_node.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <visualization_msgs/msg/marker_array.hpp>
+
 #include <memory>
 #include <mutex>
 #include <string>
-
-#include "grid_map_core/grid_map_core.hpp"
-#include "grid_map_ros/grid_map_ros.hpp"
-#include "nav2_msgs/action/compute_path_to_pose.hpp"
-#include "nav2_util/lifecycle_node.hpp"
-#include "rclcpp/rclcpp.hpp"
-#include "rclcpp_action/rclcpp_action.hpp"
-#include "tf2_ros/buffer.h"
-#include "tf2_ros/transform_listener.h"
-#include "topographic_planner/pathfinder.hpp"
-#include "visualization_msgs/msg/marker_array.hpp"
 
 namespace topographic_planner {
 

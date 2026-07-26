@@ -1,8 +1,9 @@
 #pragma once
 
+#include <grid_map_core/grid_map_core.hpp>
+
 #include <cstdint>
 #include <functional>
-#include <grid_map_core/grid_map_core.hpp>
 #include <string>
 #include <vector>
 

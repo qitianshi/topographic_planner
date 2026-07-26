@@ -18,6 +18,7 @@
 
 namespace topographic_planner {
 
+/* Action server node for topographic path planning */
 class TopographicPlannerNode : public nav2_util::LifecycleNode {
   public:
     using ComputePathToPose = nav2_msgs::action::ComputePathToPose;
@@ -64,13 +65,15 @@ class TopographicPlannerNode : public nav2_util::LifecycleNode {
         const std::shared_ptr<GoalHandleComputePathToPose> goal_handle
     );
 
+    /* Executes the path search */
     void execute(
         const std::shared_ptr<GoalHandleComputePathToPose> goal_handle
     );
 
+    /* Callback for grid_map subscription */
     void map_callback(const grid_map_msgs::msg::GridMap::SharedPtr msg);
 
-    /* Transforms a pose to a target frame. */
+    /* Transforms a pose to a target frame */
     bool transform_pose_to_frame(
         const geometry_msgs::msg::PoseStamped &input_pose,
         const std::string &target_frame,
@@ -78,10 +81,18 @@ class TopographicPlannerNode : public nav2_util::LifecycleNode {
         geometry_msgs::msg::PoseStamped &output_pose
     );
 
+    /* Publishes search tree visualization markers */
+    void publish_search_tree(
+        const grid_map::Position &p1,
+        const grid_map::Position &p2,
+        int type
+    );
+
     // Node state
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
+    // Pub/subs and action server
     rclcpp_action::Server<ComputePathToPose>::SharedPtr action_server_;
     rclcpp::Subscription<grid_map_msgs::msg::GridMap>::SharedPtr map_sub_;
     rclcpp_lifecycle::LifecyclePublisher<

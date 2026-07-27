@@ -6,6 +6,7 @@
 #include <grid_map_ros/grid_map_ros.hpp>
 #include <nav2_msgs/action/compute_path_to_pose.hpp>
 #include <nav2_util/lifecycle_node.hpp>
+#include <nav2_util/simple_action_server.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <tf2_ros/buffer.h>
@@ -52,23 +53,8 @@ class TopographicPlannerNode : public nav2_util::LifecycleNode {
     ) override;
 
   private:
-    rclcpp_action::GoalResponse handle_goal(
-        const rclcpp_action::GoalUUID &uuid,
-        std::shared_ptr<const ComputePathToPose::Goal> goal
-    );
-
-    rclcpp_action::CancelResponse handle_cancel(
-        const std::shared_ptr<GoalHandleComputePathToPose> goal_handle
-    );
-
-    void handle_accepted(
-        const std::shared_ptr<GoalHandleComputePathToPose> goal_handle
-    );
-
     /* Executes the path search */
-    void execute(
-        const std::shared_ptr<GoalHandleComputePathToPose> goal_handle
-    );
+    void execute();
 
     /* Callback for grid_map subscription */
     void map_callback(const grid_map_msgs::msg::GridMap::SharedPtr msg);
@@ -93,7 +79,8 @@ class TopographicPlannerNode : public nav2_util::LifecycleNode {
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
     // Pub/subs and action server
-    rclcpp_action::Server<ComputePathToPose>::SharedPtr action_server_;
+    std::unique_ptr<nav2_util::SimpleActionServer<ComputePathToPose>>
+        action_server_;
     rclcpp::Subscription<grid_map_msgs::msg::GridMap>::SharedPtr map_sub_;
     rclcpp_lifecycle::LifecyclePublisher<
         visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
@@ -109,4 +96,4 @@ class TopographicPlannerNode : public nav2_util::LifecycleNode {
     int smooth_steps_;
 };
 
-} // namespace topographic_planner
+}    // namespace topographic_planner

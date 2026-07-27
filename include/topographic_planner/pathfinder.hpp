@@ -24,14 +24,17 @@ struct Config {
     std::function<
         void(const grid_map::Position &, const grid_map::Position &, int)>
         visualization_callback;
+    std::function<bool()> abort_checker;
 };
 
+// Pathfinding result, mirrors ComputePathToPose::Result
 enum class Result {
     FoundPath,
     NoPath,
     ErrMem,
     StartOutsideMap,
-    GoalOutsideMap
+    GoalOutsideMap,
+    Cancelled
 };
 
 const char *resultToStr(Result res);
@@ -44,4 +47,4 @@ Result search(
     std::vector<grid_map::Position> &path
 );
 
-} // namespace pathfinder
+}    // namespace pathfinder

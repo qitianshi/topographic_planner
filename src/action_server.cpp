@@ -35,9 +35,9 @@ using std::placeholders::_3;
 #define DEFAULT_ELEV_LAYER_NAME "elevation"
 #define DEFAULT_TRAV_LAYER_NAME "traversability"
 
-#define DECLARE_DEFAULT_PARAM(param_name, default_value) \
-    nav2_util::declare_parameter_if_not_declared( \
-        this, param_name, rclcpp::ParameterValue(default_value) \
+#define DECLARE_DEFAULT_PARAM(param_name, default_value)                       \
+    nav2_util::declare_parameter_if_not_declared(                              \
+        this, param_name, rclcpp::ParameterValue(default_value)                \
     )
 
 #define TF_TIMEOUT_SEC 1.0
@@ -73,13 +73,13 @@ nav_msgs::msg::Path to_ros_path(
         pose.pose.position.x = p.x();
         pose.pose.position.y = p.y();
         pose.pose.position.z = 0.0;
-        pose.pose.orientation.w = 1.0;      // TODO: Calculate path tangent
+        pose.pose.orientation.w = 1.0;    // TODO: Calculate path tangent
         ros_path.poses.push_back(pose);
     }
     return ros_path;
 }
 
-} // namespace
+}    // namespace
 
 namespace topographic_planner {
 
@@ -139,13 +139,16 @@ nav2_util::CallbackReturn TopographicPlannerNode::on_configure(
     );
 
     // Compute path action
-    action_server_ = rclcpp_action::create_server<ComputePathToPose>(
-        this,
-        ACTION_NAME,
-        std::bind(&TopographicPlannerNode::handle_goal, this, _1, _2),
-        std::bind(&TopographicPlannerNode::handle_cancel, this, _1),
-        std::bind(&TopographicPlannerNode::handle_accepted, this, _1)
-    );
+    action_server_ =
+        std::make_unique<nav2_util::SimpleActionServer<ComputePathToPose>>(
+            this, ACTION_NAME, std::bind(&TopographicPlannerNode::execute, this)
+        );
+
+    // Callback for checking cancellation
+    config_.abort_checker = [this]() {
+        return action_server_->is_cancel_requested() ||
+               action_server_->is_preempt_requested();
+    };
 
     return nav2_util::CallbackReturn::SUCCESS;
 }
@@ -155,6 +158,7 @@ nav2_util::CallbackReturn TopographicPlannerNode::on_activate(
 ) {
     RCLCPP_INFO(get_logger(), "Activating " NODE_NAME "...");
     marker_pub_->on_activate();
+    action_server_->activate();
     return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -163,6 +167,7 @@ nav2_util::CallbackReturn TopographicPlannerNode::on_deactivate(
 ) {
     RCLCPP_INFO(get_logger(), "Deactivating " NODE_NAME "...");
     marker_pub_->on_deactivate();
+    action_server_->deactivate();
     return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -175,6 +180,10 @@ nav2_util::CallbackReturn TopographicPlannerNode::on_cleanup(
     marker_pub_.reset();
     tf_listener_.reset();
     tf_buffer_.reset();
+
+    std::lock_guard<std::mutex> lock(map_mutex_);
+    cached_map_.reset();
+
     return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -202,7 +211,7 @@ void TopographicPlannerNode::publish_search_tree(
     const grid_map::Position &p2,
     int type
 ) {
-    (void)type;         // Just lines for now
+    (void)type;    // Just lines for now
     if (!marker_pub_ || marker_pub_->get_subscription_count() == 0) {
         return;
     }
@@ -211,7 +220,7 @@ void TopographicPlannerNode::publish_search_tree(
     marker.header.frame_id = map_frame_id_;
     marker.header.stamp = now();
     marker.ns = SEARCH_TREE_TOPIC;
-    marker.id = 0;                                          // TODO: Increment?
+    marker.id = 0;    // TODO: Increment?
     marker.type = visualization_msgs::msg::Marker::LINE_LIST;
     marker.action = visualization_msgs::msg::Marker::ADD;
     marker.scale.x = 0.05;
@@ -231,29 +240,6 @@ void TopographicPlannerNode::publish_search_tree(
     marker.points.push_back(pt2);
     marker_array.markers.push_back(marker);
     marker_pub_->publish(marker_array);
-}
-
-rclcpp_action::GoalResponse TopographicPlannerNode::handle_goal(
-    const rclcpp_action::GoalUUID & /*uuid*/,
-    std::shared_ptr<const ComputePathToPose::Goal> /*goal*/
-) {
-    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
-}
-
-rclcpp_action::CancelResponse TopographicPlannerNode::handle_cancel(
-    const std::shared_ptr<GoalHandleComputePathToPose> /*goal_handle*/
-) {
-    return rclcpp_action::CancelResponse::ACCEPT;
-}
-
-void TopographicPlannerNode::handle_accepted(
-    const std::shared_ptr<GoalHandleComputePathToPose> goal_handle
-) {
-    std::thread{
-        std::bind(&TopographicPlannerNode::execute, this, _1),
-        goal_handle
-    }
-        .detach();
 }
 
 bool TopographicPlannerNode::transform_pose_to_frame(
@@ -296,11 +282,9 @@ bool TopographicPlannerNode::transform_pose_to_frame(
     }
 }
 
-void TopographicPlannerNode::execute(
-    const std::shared_ptr<GoalHandleComputePathToPose> goal_handle
-) {
+void TopographicPlannerNode::execute() {
     auto result = std::make_shared<ComputePathToPose::Result>();
-    auto goal = goal_handle->get_goal();
+    auto goal = action_server_->get_current_goal();
 
     // Makes a stable copy of the most recent cached map.
     std::shared_ptr<grid_map::GridMap> map_copy;
@@ -309,7 +293,7 @@ void TopographicPlannerNode::execute(
         std::lock_guard<std::mutex> lock(map_mutex_);
         if (!cached_map_) {
             RCLCPP_ERROR(get_logger(), "No grid map received yet!");
-            goal_handle->abort(result);
+            action_server_->terminate_current(result);
             return;
         }
         map_copy = std::make_shared<grid_map::GridMap>(*cached_map_);
@@ -321,7 +305,7 @@ void TopographicPlannerNode::execute(
     if (!transform_pose_to_frame(goal->start, map_frame, "start", start_pose) ||
         !transform_pose_to_frame(goal->goal, map_frame, "goal", goal_pose)) {
         result->error_code = ComputePathToPose::Result::TF_ERROR;
-        goal_handle->abort(result);
+        action_server_->terminate_current(result);
         return;
     }
 
@@ -338,6 +322,12 @@ void TopographicPlannerNode::execute(
     pathfinder::Result pf_result =
         pathfinder::search(*map_copy, config_, start_pos, dest_pos, path);
 
+    if (pf_result == pathfinder::Result::Cancelled) {
+        RCLCPP_INFO(get_logger(), "Pathfinder search cancelled.");
+        action_server_->terminate_current(result);
+        return;
+    }
+
     if (pf_result != pathfinder::Result::FoundPath) {
         RCLCPP_ERROR(
             get_logger(),
@@ -345,7 +335,7 @@ void TopographicPlannerNode::execute(
             pathfinder::resultToStr(pf_result)
         );
         result->error_code = to_action_result(pf_result);
-        goal_handle->abort(result);
+        action_server_->terminate_current(result);
         return;
     }
 
@@ -355,7 +345,7 @@ void TopographicPlannerNode::execute(
     }
 
     result->path = to_ros_path(path, map_frame, now());
-    goal_handle->succeed(result);
+    action_server_->succeeded_current(result);
 }
 
-} // namespace topographic_planner
+}    // namespace topographic_planner

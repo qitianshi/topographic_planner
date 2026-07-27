@@ -13,4 +13,4 @@ void apply(
     std::vector<grid_map::Position> &path
 );
 
-} // namespace smooth
+}    // namespace smooth

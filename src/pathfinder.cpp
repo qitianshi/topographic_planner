@@ -31,10 +31,10 @@ struct IndexEqual {
 
 struct Cell {
     grid_map::Index index;
-    float pathLen; // heuristic + dist to cell from start
+    float pathLen;    // heuristic + dist to cell from start
 
     bool operator<(const Cell &other) const {
-        return pathLen > other.pathLen; // min-heap based on pathLen
+        return pathLen > other.pathLen;    // min-heap based on pathLen
     }
 };
 
@@ -70,7 +70,7 @@ static float cellCalcGrad(
 ) {
     if (std::isnan(map.at(elevation_layer, curIndex)) ||
         std::isnan(map.at(elevation_layer, nextIndex))) {
-        return PF_COST_INFINITY; // Unknown elevation means not traversable
+        return PF_COST_INFINITY;    // Unknown elevation means not traversable
     }
     const float elevDiff = std::abs(
         map.at(elevation_layer, curIndex) - map.at(elevation_layer, nextIndex)
@@ -102,7 +102,7 @@ static float cellCalcEdgeCost(
     if (!map.isValid(nextIndex, config.traversability_layer))
         return PF_COST_INFINITY;
     const float cost = map.at(config.traversability_layer, nextIndex);
-    if (cost >= 253.0f || std::isnan(cost)) // High cost threshold
+    if (cost >= 253.0f || std::isnan(cost))    // High cost threshold
         return PF_COST_INFINITY;
 
     const float xyDist = cellCalcXyDist(map, curIndex, nextIndex);
@@ -146,7 +146,7 @@ static void cellsEnqueue(
     it = cells.dists.find(nextIndex);
     float nextDist = (it != cells.dists.end()) ? it->second : PF_COST_INFINITY;
     if (distToCell >= nextDist)
-        return; // Not better
+        return;    // Not better
 
     cells.inqueue[nextIndex] = true;
     cells.dists[nextIndex] = distToCell;
@@ -168,7 +168,7 @@ static void cellsTreeAdd(
         grid_map::Position p1, p2;
         map.getPosition(cells.parents[pos], p1);
         map.getPosition(pos, p2);
-        config.visualization_callback(p1, p2, 0); // 0 = Tree
+        config.visualization_callback(p1, p2, 0);    // 0 = Tree
     }
 }
 
@@ -183,7 +183,13 @@ static bool searchInternal(
     cells.toExplore.push(Cell{curIndex, 0.0f});
     cells.inqueue[curIndex] = true;
 
+    int iter_count = 0;
     while (!cells.toExplore.empty()) {
+        if (++iter_count % 100 == 0 && config.abort_checker &&
+            config.abort_checker()) {
+            return false;
+        }
+
         Cell closestCell = cells.toExplore.top();
         cells.toExplore.pop();
 
@@ -243,7 +249,7 @@ bool createPath(
             break;
         auto it = parents.find(curPos);
         if (it == parents.end()) {
-            return false; // Error finding parent
+            return false;    // Error finding parent
         }
         curPos = it->second;
     }
@@ -265,6 +271,9 @@ Result search(
     }
 
     if (!searchInternal(map, config, cells)) {
+        if (config.abort_checker && config.abort_checker()) {
+            return Result::Cancelled;
+        }
         return Result::NoPath;
     }
 
@@ -289,9 +298,11 @@ const char *resultToStr(Result res) {
         return "start point is outside the map";
     case Result::GoalOutsideMap:
         return "goal point is outside the map";
+    case Result::Cancelled:
+        return "search was cancelled";
     default:
         return "unknown error";
     }
 }
 
-} // namespace pathfinder
+}    // namespace pathfinder

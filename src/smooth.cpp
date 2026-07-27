@@ -25,7 +25,7 @@ static float getCost(
     const grid_map::Position &point
 ) {
     if (!map.isInside(point)) {
-        return 255.0f; // High cost outside
+        return 255.0f;    // High cost outside
     }
     return map.atPosition("traversability", point);
 }
@@ -41,15 +41,15 @@ void step(const grid_map::GridMap &map, std::vector<grid_map::Position> &path) {
     for (size_t i = 1; i < path.size(); ++i) {
         grid_map::Position *third = &path[i];
         const grid_map::Position base =
-            lerp(first, *third, 0.5f); // Midpoint of first and third
+            lerp(first, *third, 0.5f);    // Midpoint of first and third
 
         float factor =
             0.5f - (getCost(map, *second) - getCost(map, base)) / 10.0f;
         const grid_map::Position newPoint = lerp(*second, base, factor);
 
-        first = *second;    // Second moves to first
-        *second = newPoint; // The actual path changes
-        second = third;     // Third moves to second
+        first = *second;       // Second moves to first
+        *second = newPoint;    // The actual path changes
+        second = third;        // Third moves to second
     }
 }
 
@@ -64,4 +64,4 @@ void apply(
     }
 }
 
-} // namespace smooth
+}    // namespace smooth

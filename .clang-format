@@ -13,4 +13,6 @@ ReturnTypeBreakingStyle: ExceptShortType
 PenaltyReturnTypeOnItsOwnLine: 1000
 
 AlignTrailingComments:
+  Kind: Always
   OverEmptyLines: 0
+SpacesBeforeTrailingComments: 4

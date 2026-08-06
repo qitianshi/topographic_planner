@@ -5,27 +5,30 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace pathfinder {
 
 struct Weights {
-    float xyDist;
+    float xy_dist;
     float grad;
     float cost;
     float heuristic;
-    float maxGrad;
+    float max_grad;
 };
 
 struct Config {
     Weights weights;
-    std::string elevation_layer;
-    std::string traversability_layer;
+    std::string elev_layer;
+    std::string trav_layer;
     std::function<
         void(const grid_map::Position &, const grid_map::Position &, int)>
         visualization_callback;
-    std::function<bool()> abort_checker;
+    std::function<bool()> abort_check_callback;
 };
+
+using Path = std::vector<grid_map::Position>;
 
 // Pathfinding result, mirrors ComputePathToPose::Result
 enum class Result {
@@ -37,14 +40,14 @@ enum class Result {
     Cancelled
 };
 
-const char *resultToStr(Result res);
+std::string_view result_description(Result res);
 
 Result search(
     const grid_map::GridMap &map,
     const Config &config,
     const grid_map::Position &start,
     const grid_map::Position &dest,
-    std::vector<grid_map::Position> &path
+    Path &path
 );
 
 }    // namespace pathfinder

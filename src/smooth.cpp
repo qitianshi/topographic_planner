@@ -22,45 +22,48 @@ static grid_map::Position lerp(
 /* Calculate the cost at a particular point in the map */
 static float getCost(
     const grid_map::GridMap &map,
+    const std::string &layer,
     const grid_map::Position &point
 ) {
     if (!map.isInside(point)) {
         return 255.0f;    // High cost outside
     }
-    return map.atPosition("traversability", point);
+    return map.atPosition(layer, point);
 }
 
 /* A single smooth step over a path, respecting the cost map */
-void step(const grid_map::GridMap &map, std::vector<grid_map::Position> &path) {
-    if (path.size() < 2)
+void step(
+    const grid_map::GridMap &map,
+    const std::string &layer,
+    pathfinder::Path &path
+) {
+    if (path.size() < 3)
         return;
 
-    grid_map::Position first = path[0];
-    grid_map::Position *second = &path[1];
+    grid_map::Position prev = path[0];
+    for (size_t i = 1; i < path.size() - 1; ++i) {
+        grid_map::Position curr = path[i];
+        grid_map::Position next = path[i + 1];
 
-    for (size_t i = 1; i < path.size(); ++i) {
-        grid_map::Position *third = &path[i];
-        const grid_map::Position base =
-            lerp(first, *third, 0.5f);    // Midpoint of first and third
-
+        const grid_map::Position base = lerp(prev, next, 0.5f);
         float factor =
-            0.5f - (getCost(map, *second) - getCost(map, base)) / 10.0f;
-        const grid_map::Position newPoint = lerp(*second, base, factor);
+            0.5f -
+            (getCost(map, layer, curr) - getCost(map, layer, base)) / 10.0f;
 
-        first = *second;       // Second moves to first
-        *second = newPoint;    // The actual path changes
-        second = third;        // Third moves to second
+        path[i] = lerp(curr, base, factor);
+        prev = curr;    // Use original point for next iteration's base
     }
 }
 
 /* Smooth an entire path using multiple steps */
 void apply(
     const grid_map::GridMap &map,
+    const std::string &trav_layer,
     uint32_t steps,
-    std::vector<grid_map::Position> &path
+    pathfinder::Path &path
 ) {
     for (uint32_t i = 0; i < steps; ++i) {
-        step(map, path);
+        step(map, trav_layer, path);
     }
 }
 

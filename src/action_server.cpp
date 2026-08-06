@@ -60,7 +60,7 @@ uint16_t to_action_result(pathfinder::Result result) {
 
 /* Converts a `pathfinder` position array to `nav_msgs::msg::Path` */
 nav_msgs::msg::Path to_ros_path(
-    const std::vector<grid_map::Position> &positions,
+    const pathfinder::Path &positions,
     const std::string &frame_id,
     const rclcpp::Time &stamp
 ) {
@@ -93,7 +93,7 @@ TopographicPlannerNode::~TopographicPlannerNode() = default;
 nav2_util::CallbackReturn TopographicPlannerNode::on_configure(
     const rclcpp_lifecycle::State & /*state*/
 ) {
-    RCLCPP_INFO(get_logger(), "Configuring " NODE_NAME "...");
+    RCLCPP_INFO_STREAM(get_logger(), "Configuring " NODE_NAME "...");
 
     // Default param values (if not supplied)
     DECLARE_DEFAULT_PARAM(PARAM_RESOLUTION, DEFAULT_RESOLUTION);
@@ -110,12 +110,12 @@ nav2_util::CallbackReturn TopographicPlannerNode::on_configure(
     get_parameter(PARAM_RESOLUTION, resolution_);
     get_parameter(PARAM_SMOOTH_STEPS, smooth_steps_);
     get_parameter(PARAM_WEIGHT_GRAD, config_.weights.grad);
-    get_parameter(PARAM_WEIGHT_XY_DIST, config_.weights.xyDist);
+    get_parameter(PARAM_WEIGHT_XY_DIST, config_.weights.xy_dist);
     get_parameter(PARAM_WEIGHT_COST, config_.weights.cost);
     get_parameter(PARAM_WEIGHT_HEURISTIC, config_.weights.heuristic);
-    get_parameter(PARAM_MAX_GRADIENT, config_.weights.maxGrad);
-    get_parameter(PARAM_ELEV_LAYER_NAME, config_.elevation_layer);
-    get_parameter(PARAM_TRAV_LAYER_NAME, config_.traversability_layer);
+    get_parameter(PARAM_MAX_GRADIENT, config_.weights.max_grad);
+    get_parameter(PARAM_ELEV_LAYER_NAME, config_.elev_layer);
+    get_parameter(PARAM_TRAV_LAYER_NAME, config_.trav_layer);
 
     // tf2 buffer and listener for transforming start/goal poses.
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
@@ -145,7 +145,7 @@ nav2_util::CallbackReturn TopographicPlannerNode::on_configure(
         );
 
     // Callback for checking cancellation
-    config_.abort_checker = [this]() {
+    config_.abort_check_callback = [this]() {
         return action_server_->is_cancel_requested() ||
                action_server_->is_preempt_requested();
     };
@@ -156,7 +156,7 @@ nav2_util::CallbackReturn TopographicPlannerNode::on_configure(
 nav2_util::CallbackReturn TopographicPlannerNode::on_activate(
     const rclcpp_lifecycle::State & /*state*/
 ) {
-    RCLCPP_INFO(get_logger(), "Activating " NODE_NAME "...");
+    RCLCPP_INFO_STREAM(get_logger(), "Activating " NODE_NAME "...");
     marker_pub_->on_activate();
     action_server_->activate();
     return nav2_util::CallbackReturn::SUCCESS;
@@ -165,7 +165,7 @@ nav2_util::CallbackReturn TopographicPlannerNode::on_activate(
 nav2_util::CallbackReturn TopographicPlannerNode::on_deactivate(
     const rclcpp_lifecycle::State & /*state*/
 ) {
-    RCLCPP_INFO(get_logger(), "Deactivating " NODE_NAME "...");
+    RCLCPP_INFO_STREAM(get_logger(), "Deactivating " NODE_NAME "...");
     marker_pub_->on_deactivate();
     action_server_->deactivate();
     return nav2_util::CallbackReturn::SUCCESS;
@@ -174,7 +174,7 @@ nav2_util::CallbackReturn TopographicPlannerNode::on_deactivate(
 nav2_util::CallbackReturn TopographicPlannerNode::on_cleanup(
     const rclcpp_lifecycle::State & /*state*/
 ) {
-    RCLCPP_INFO(get_logger(), "Cleaning up " NODE_NAME "...");
+    RCLCPP_INFO_STREAM(get_logger(), "Cleaning up " NODE_NAME "...");
     action_server_.reset();
     map_sub_.reset();
     marker_pub_.reset();
@@ -190,7 +190,7 @@ nav2_util::CallbackReturn TopographicPlannerNode::on_cleanup(
 nav2_util::CallbackReturn TopographicPlannerNode::on_shutdown(
     const rclcpp_lifecycle::State & /*state*/
 ) {
-    RCLCPP_INFO(get_logger(), "Shutting down " NODE_NAME "...");
+    RCLCPP_INFO_STREAM(get_logger(), "Shutting down " NODE_NAME "...");
     return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -257,12 +257,11 @@ bool TopographicPlannerNode::transform_pose_to_frame(
                 tf2::TimePointZero,
                 tf2::durationFromSec(TF_TIMEOUT_SEC)
             )) {
-            RCLCPP_ERROR(
+            RCLCPP_ERROR_STREAM(
                 get_logger(),
-                "Could not transform %s to map frame '%s' from frame '%s'",
-                pose_name.c_str(),
-                target_frame.c_str(),
-                input_pose.header.frame_id.c_str()
+                "Could not transform " << pose_name << " to map frame '"
+                                       << target_frame << "' from frame '"
+                                       << input_pose.header.frame_id << "'"
             );
             return false;
         }
@@ -272,11 +271,9 @@ bool TopographicPlannerNode::transform_pose_to_frame(
         return true;
 
     } catch (const tf2::TransformException &ex) {
-        RCLCPP_ERROR(
+        RCLCPP_ERROR_STREAM(
             get_logger(),
-            "TF exception transforming %s: %s",
-            pose_name.c_str(),
-            ex.what()
+            "TF exception transforming " << pose_name << ": " << ex.what()
         );
         return false;
     }
@@ -292,7 +289,7 @@ void TopographicPlannerNode::execute() {
     {
         std::lock_guard<std::mutex> lock(map_mutex_);
         if (!cached_map_) {
-            RCLCPP_ERROR(get_logger(), "No grid map received yet!");
+            RCLCPP_ERROR_STREAM(get_logger(), "No grid map received yet!");
             action_server_->terminate_current(result);
             return;
         }
@@ -318,21 +315,20 @@ void TopographicPlannerNode::execute() {
     );
 
     // Performs search.
-    std::vector<grid_map::Position> path;
+    pathfinder::Path path;
     pathfinder::Result pf_result =
         pathfinder::search(*map_copy, config_, start_pos, dest_pos, path);
 
     if (pf_result == pathfinder::Result::Cancelled) {
-        RCLCPP_INFO(get_logger(), "Pathfinder search cancelled.");
+        RCLCPP_INFO_STREAM(get_logger(), "Pathfinder search cancelled.");
         action_server_->terminate_current(result);
         return;
     }
 
     if (pf_result != pathfinder::Result::FoundPath) {
-        RCLCPP_ERROR(
+        RCLCPP_ERROR_STREAM(
             get_logger(),
-            "Pathfinder failed: %s",
-            pathfinder::resultToStr(pf_result)
+            "Pathfinder failed: " << pathfinder::result_description(pf_result)
         );
         result->error_code = to_action_result(pf_result);
         action_server_->terminate_current(result);
@@ -341,7 +337,9 @@ void TopographicPlannerNode::execute() {
 
     // Smooths the path if requested.
     if (smooth_steps_ > 0) {
-        smooth::apply(*map_copy, smooth_steps_, path);
+        smooth::apply(
+            *map_copy, config_.trav_layer, smooth_steps_, path
+        );
     }
 
     result->path = to_ros_path(path, map_frame, now());

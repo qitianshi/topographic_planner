@@ -317,7 +317,7 @@ void TopographicPlannerNode::execute() {
     // Performs search.
     pathfinder::Path path;
     pathfinder::Result pf_result =
-        pathfinder::search(*map_copy, config_, start_pos, dest_pos, path);
+        pathfinder_.search(*map_copy, config_, start_pos, dest_pos, path);
 
     if (pf_result == pathfinder::Result::Cancelled) {
         RCLCPP_INFO_STREAM(get_logger(), "Pathfinder search cancelled.");

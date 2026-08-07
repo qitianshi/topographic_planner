@@ -94,6 +94,9 @@ class TopographicPlannerNode : public nav2_util::LifecycleNode {
     pathfinder::Config config_;
     float resolution_;
     int smooth_steps_;
+
+    // Pathfinder object
+    pathfinder::Pathfinder pathfinder_;
 };
 
 }    // namespace topographic_planner

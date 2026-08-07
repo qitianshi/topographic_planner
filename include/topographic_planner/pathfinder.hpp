@@ -10,6 +10,7 @@
 
 namespace pathfinder {
 
+/** Cost function weights and thresholds used by the A* search */
 struct Weights {
     float xy_dist;
     float grad;
@@ -18,6 +19,7 @@ struct Weights {
     float max_grad;
 };
 
+/** Configuration parameters for Pathfinder */
 struct Config {
     Weights weights;
     std::string elev_layer;
@@ -30,7 +32,7 @@ struct Config {
 
 using Path = std::vector<grid_map::Position>;
 
-// Pathfinding result, mirrors ComputePathToPose::Result
+/** Represents the outcome of a pathfinding request. */
 enum class Result {
     FoundPath,
     NoPath,
@@ -40,14 +42,37 @@ enum class Result {
     Cancelled
 };
 
+/** Converts a search result enum to a human-readable string */
 std::string_view result_description(Result res);
 
-Result search(
-    const grid_map::GridMap &map,
-    const Config &config,
-    const grid_map::Position &start,
-    const grid_map::Position &dest,
-    Path &path
-);
+/** 2.5D A* path planner for grid_maps */
+class Pathfinder {
+  public:
+    Pathfinder();
+    ~Pathfinder();
+
+    /**
+     * @brief Executes an A* search on the given grid_map from start to dest.
+     *
+     * @param map The grid map containing elevation and traversability layers.
+     * @param config Configuration object.
+     * @param start The starting world coordinates.
+     * @param dest The destination world coordinates.
+     * @param path The output path, populated if a path is found.
+     * @return Result enum indicating success or failure reason.
+     */
+    Result search(
+        const grid_map::GridMap &map,
+        const Config &config,
+        const grid_map::Position &start,
+        const grid_map::Position &dest,
+        Path &path
+    );
+
+  private:
+    // Pimpl idiom. Hides internal A* node and state allocation details.
+    class Solver;
+    std::unique_ptr<Solver> solver_;
+};
 
 }    // namespace pathfinder

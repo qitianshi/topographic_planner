@@ -9,8 +9,6 @@
 #include <queue>
 #include <vector>
 
-#define PF_COST_INFINITY INFINITY
-
 namespace pathfinder {
 
 /** A* search solver */
@@ -46,11 +44,11 @@ class Pathfinder::Solver {
         if (parents_.size() != static_cast<size_t>(total_nodes)) {
             parents_.assign(total_nodes, parents_null_val_);
             closed_list_.assign(total_nodes, false);
-            g_scores_.assign(total_nodes, PF_COST_INFINITY);
+            g_scores_.assign(total_nodes, pf_cost_infinity);
         } else {
             std::fill(parents_.begin(), parents_.end(), parents_null_val_);
             std::fill(closed_list_.begin(), closed_list_.end(), false);
-            std::fill(g_scores_.begin(), g_scores_.end(), PF_COST_INFINITY);
+            std::fill(g_scores_.begin(), g_scores_.end(), pf_cost_infinity);
         }
 
         std::priority_queue<Node> empty;
@@ -94,7 +92,7 @@ class Pathfinder::Solver {
         return grid_map::Index(idx_1d / map_size_(1), idx_1d % map_size_(1));
     }
 
-    bool is_traversable(float cost) const { return cost != PF_COST_INFINITY; }
+    bool is_traversable(float cost) const { return cost != pf_cost_infinity; }
 
     /** Calculates the 2D Euclidean distance between adjacent nodes */
     float adjacent_dist(
@@ -115,7 +113,7 @@ class Pathfinder::Solver {
         float curr_elev = (*elev_data_)(from_idx(0), from_idx(1));
         float next_elev = (*elev_data_)(to_idx(0), to_idx(1));
         if (std::isnan(curr_elev) || std::isnan(next_elev))
-            return PF_COST_INFINITY;
+            return pf_cost_infinity;
 
         return (next_elev - curr_elev) / xy_dist;
     }
@@ -127,17 +125,17 @@ class Pathfinder::Solver {
     ) const {
         // Checks is within map bounds
         if (!map_->isValid(to_idx, config_->trav_layer))
-            return PF_COST_INFINITY;
+            return pf_cost_infinity;
 
         const float trav = (*trav_data_)(to_idx(0), to_idx(1));
         if (trav >= lethal_trav || std::isnan(trav))
-            return PF_COST_INFINITY;
+            return pf_cost_infinity;
 
         const float adj_dist = adjacent_dist(from_idx, to_idx);
         const float abs_grad =
             std::abs(adjacent_grad(from_idx, to_idx, adj_dist));
         if (abs_grad >= config_->weights.max_grad)
-            return PF_COST_INFINITY;
+            return pf_cost_infinity;
 
         return config_->weights.grad * abs_grad +
                config_->weights.xy_dist * adj_dist +
@@ -302,6 +300,7 @@ class Pathfinder::Solver {
     // Constants
     constexpr static float lethal_trav = 253.0f;
     constexpr static int parents_null_val_ = -1;
+    constexpr static float pf_cost_infinity = INFINITY;
 
     // Search state
     std::priority_queue<Node> open_list_;

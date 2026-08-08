@@ -6,43 +6,36 @@
 #include <nav2_util/node_utils.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
-using std::placeholders::_1;
-using std::placeholders::_2;
-using std::placeholders::_3;
-
-#define NODE_NAME "topographic_planner_node"
-#define ACTION_NAME "compute_path_to_pose"
-#define GRID_MAP_TOPIC "grid_map"
-#define SEARCH_TREE_TOPIC "search_tree"
-
-#define PARAM_RESOLUTION "resolution"
-#define PARAM_SMOOTH_STEPS "smooth_steps"
-#define PARAM_WEIGHT_GRAD "weight_grad"
-#define PARAM_WEIGHT_XY_DIST "weight_xy_dist"
-#define PARAM_WEIGHT_COST "weight_cost"
-#define PARAM_WEIGHT_HEURISTIC "weight_heuristic"
-#define PARAM_MAX_GRADIENT "max_gradient"
-#define PARAM_ELEV_LAYER_NAME "elevation_layer_name"
-#define PARAM_TRAV_LAYER_NAME "traversability_layer_name"
-
-#define DEFAULT_RESOLUTION 0.1
-#define DEFAULT_SMOOTH_STEPS 10
-#define DEFAULT_WEIGHT_GRAD 1.26
-#define DEFAULT_WEIGHT_XY_DIST 1.34
-#define DEFAULT_WEIGHT_COST 0.00706
-#define DEFAULT_WEIGHT_HEURISTIC 3.5
-#define DEFAULT_MAX_GRADIENT 0.577
-#define DEFAULT_ELEV_LAYER_NAME "elevation"
-#define DEFAULT_TRAV_LAYER_NAME "traversability"
-
-#define DECLARE_DEFAULT_PARAM(param_name, default_value)                       \
-    nav2_util::declare_parameter_if_not_declared(                              \
-        this, param_name, rclcpp::ParameterValue(default_value)                \
-    )
-
-#define TF_TIMEOUT_SEC 1.0
-
 namespace {
+
+constexpr const char *node_name = "topographic_planner_node";
+constexpr const char *action_name = "compute_path_to_pose";
+constexpr const char *grid_map_topic = "grid_map";
+constexpr const char *search_tree_topic = "search_tree";
+
+// ROS param names
+constexpr const char *param_resolution = "resolution";
+constexpr const char *param_smooth_steps = "smooth_steps";
+constexpr const char *param_weight_grad = "weight_grad";
+constexpr const char *param_weight_xy_dist = "weight_xy_dist";
+constexpr const char *param_weight_cost = "weight_cost";
+constexpr const char *param_weight_heuristic = "weight_heuristic";
+constexpr const char *param_max_gradient = "max_gradient";
+constexpr const char *param_elev_layer_name = "elevation_layer_name";
+constexpr const char *param_trav_layer_name = "traversability_layer_name";
+
+// ROS param default values
+constexpr double default_resolution = 0.1;
+constexpr int default_smooth_steps = 10;
+constexpr double default_weight_grad = 1.26;
+constexpr double default_weight_xy_dist = 1.34;
+constexpr double default_weight_cost = 0.00706;
+constexpr double default_weight_heuristic = 3.5;
+constexpr double default_max_gradient = 0.577;
+constexpr const char *default_elev_layer_name = "elevation";
+constexpr const char *default_trav_layer_name = "traversability";
+
+constexpr double tf_timeout_sec = 1.0;
 
 /* Converts a `pathfinder::Result` to a `ComputePathToPose` action error code */
 uint16_t to_action_result(pathfinder::Result result) {
@@ -86,36 +79,41 @@ namespace topographic_planner {
 TopographicPlannerNode::TopographicPlannerNode(
     const rclcpp::NodeOptions &options
 )
-    : nav2_util::LifecycleNode(NODE_NAME, "", options) {}
+    : nav2_util::LifecycleNode(node_name, "", options) {}
 
 TopographicPlannerNode::~TopographicPlannerNode() = default;
 
 nav2_util::CallbackReturn TopographicPlannerNode::on_configure(
     const rclcpp_lifecycle::State & /*state*/
 ) {
-    RCLCPP_INFO_STREAM(get_logger(), "Configuring " NODE_NAME "...");
+    RCLCPP_INFO_STREAM(get_logger(), "Configuring " << node_name << "...");
 
-    // Default param values (if not supplied)
-    DECLARE_DEFAULT_PARAM(PARAM_RESOLUTION, DEFAULT_RESOLUTION);
-    DECLARE_DEFAULT_PARAM(PARAM_SMOOTH_STEPS, DEFAULT_SMOOTH_STEPS);
-    DECLARE_DEFAULT_PARAM(PARAM_WEIGHT_GRAD, DEFAULT_WEIGHT_GRAD);
-    DECLARE_DEFAULT_PARAM(PARAM_WEIGHT_XY_DIST, DEFAULT_WEIGHT_XY_DIST);
-    DECLARE_DEFAULT_PARAM(PARAM_WEIGHT_COST, DEFAULT_WEIGHT_COST);
-    DECLARE_DEFAULT_PARAM(PARAM_WEIGHT_HEURISTIC, DEFAULT_WEIGHT_HEURISTIC);
-    DECLARE_DEFAULT_PARAM(PARAM_MAX_GRADIENT, DEFAULT_MAX_GRADIENT);
-    DECLARE_DEFAULT_PARAM(PARAM_ELEV_LAYER_NAME, DEFAULT_ELEV_LAYER_NAME);
-    DECLARE_DEFAULT_PARAM(PARAM_TRAV_LAYER_NAME, DEFAULT_TRAV_LAYER_NAME);
+    auto declare_param = [this](const std::string &name, auto default_value) {
+        nav2_util::declare_parameter_if_not_declared(
+            this, name, rclcpp::ParameterValue(default_value)
+        );
+    };
+
+    declare_param(param_resolution, default_resolution);
+    declare_param(param_smooth_steps, default_smooth_steps);
+    declare_param(param_weight_grad, default_weight_grad);
+    declare_param(param_weight_xy_dist, default_weight_xy_dist);
+    declare_param(param_weight_cost, default_weight_cost);
+    declare_param(param_weight_heuristic, default_weight_heuristic);
+    declare_param(param_max_gradient, default_max_gradient);
+    declare_param(param_elev_layer_name, default_elev_layer_name);
+    declare_param(param_trav_layer_name, default_trav_layer_name);
 
     // Retrieves params
-    get_parameter(PARAM_RESOLUTION, resolution_);
-    get_parameter(PARAM_SMOOTH_STEPS, smooth_steps_);
-    get_parameter(PARAM_WEIGHT_GRAD, config_.weights.grad);
-    get_parameter(PARAM_WEIGHT_XY_DIST, config_.weights.xy_dist);
-    get_parameter(PARAM_WEIGHT_COST, config_.weights.cost);
-    get_parameter(PARAM_WEIGHT_HEURISTIC, config_.weights.heuristic);
-    get_parameter(PARAM_MAX_GRADIENT, config_.weights.max_grad);
-    get_parameter(PARAM_ELEV_LAYER_NAME, config_.elev_layer);
-    get_parameter(PARAM_TRAV_LAYER_NAME, config_.trav_layer);
+    get_parameter(param_resolution, resolution_);
+    get_parameter(param_smooth_steps, smooth_steps_);
+    get_parameter(param_weight_grad, config_.weights.grad);
+    get_parameter(param_weight_xy_dist, config_.weights.xy_dist);
+    get_parameter(param_weight_cost, config_.weights.cost);
+    get_parameter(param_weight_heuristic, config_.weights.heuristic);
+    get_parameter(param_max_gradient, config_.weights.max_grad);
+    get_parameter(param_elev_layer_name, config_.elev_layer);
+    get_parameter(param_trav_layer_name, config_.trav_layer);
 
     // tf2 buffer and listener for transforming start/goal poses.
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
@@ -123,25 +121,31 @@ nav2_util::CallbackReturn TopographicPlannerNode::on_configure(
 
     // Map subscription
     map_sub_ = create_subscription<grid_map_msgs::msg::GridMap>(
-        GRID_MAP_TOPIC,
+        grid_map_topic,
         rclcpp::QoS(1).transient_local(),
-        std::bind(&TopographicPlannerNode::map_callback, this, _1)
+        std::bind(
+            &TopographicPlannerNode::map_callback, this, std::placeholders::_1
+        )
     );
 
     // Search tree debug publisher
     marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
-        SEARCH_TREE_TOPIC, 10
+        search_tree_topic, 10
     );
 
     // Callback for publishing a new search tree edge for debugging.
     config_.visualization_callback = std::bind(
-        &TopographicPlannerNode::publish_search_tree, this, _1, _2, _3
+        &TopographicPlannerNode::publish_search_tree,
+        this,
+        std::placeholders::_1,
+        std::placeholders::_2,
+        std::placeholders::_3
     );
 
     // Compute path action
     action_server_ =
         std::make_unique<nav2_util::SimpleActionServer<ComputePathToPose>>(
-            this, ACTION_NAME, std::bind(&TopographicPlannerNode::execute, this)
+            this, action_name, std::bind(&TopographicPlannerNode::execute, this)
         );
 
     // Callback for checking cancellation
@@ -156,7 +160,7 @@ nav2_util::CallbackReturn TopographicPlannerNode::on_configure(
 nav2_util::CallbackReturn TopographicPlannerNode::on_activate(
     const rclcpp_lifecycle::State & /*state*/
 ) {
-    RCLCPP_INFO_STREAM(get_logger(), "Activating " NODE_NAME "...");
+    RCLCPP_INFO_STREAM(get_logger(), "Activating " << node_name << "...");
     marker_pub_->on_activate();
     action_server_->activate();
     return nav2_util::CallbackReturn::SUCCESS;
@@ -165,7 +169,7 @@ nav2_util::CallbackReturn TopographicPlannerNode::on_activate(
 nav2_util::CallbackReturn TopographicPlannerNode::on_deactivate(
     const rclcpp_lifecycle::State & /*state*/
 ) {
-    RCLCPP_INFO_STREAM(get_logger(), "Deactivating " NODE_NAME "...");
+    RCLCPP_INFO_STREAM(get_logger(), "Deactivating " << node_name << "...");
     marker_pub_->on_deactivate();
     action_server_->deactivate();
     return nav2_util::CallbackReturn::SUCCESS;
@@ -174,7 +178,7 @@ nav2_util::CallbackReturn TopographicPlannerNode::on_deactivate(
 nav2_util::CallbackReturn TopographicPlannerNode::on_cleanup(
     const rclcpp_lifecycle::State & /*state*/
 ) {
-    RCLCPP_INFO_STREAM(get_logger(), "Cleaning up " NODE_NAME "...");
+    RCLCPP_INFO_STREAM(get_logger(), "Cleaning up " << node_name << "...");
     action_server_.reset();
     map_sub_.reset();
     marker_pub_.reset();
@@ -190,7 +194,7 @@ nav2_util::CallbackReturn TopographicPlannerNode::on_cleanup(
 nav2_util::CallbackReturn TopographicPlannerNode::on_shutdown(
     const rclcpp_lifecycle::State & /*state*/
 ) {
-    RCLCPP_INFO_STREAM(get_logger(), "Shutting down " NODE_NAME "...");
+    RCLCPP_INFO_STREAM(get_logger(), "Shutting down " << node_name << "...");
     return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -219,7 +223,7 @@ void TopographicPlannerNode::publish_search_tree(
     visualization_msgs::msg::Marker marker;
     marker.header.frame_id = map_frame_id_;
     marker.header.stamp = now();
-    marker.ns = SEARCH_TREE_TOPIC;
+    marker.ns = search_tree_topic;
     marker.id = 0;    // TODO: Increment?
     marker.type = visualization_msgs::msg::Marker::LINE_LIST;
     marker.action = visualization_msgs::msg::Marker::ADD;
@@ -255,7 +259,7 @@ bool TopographicPlannerNode::transform_pose_to_frame(
                 target_frame,
                 input_pose.header.frame_id,
                 tf2::TimePointZero,
-                tf2::durationFromSec(TF_TIMEOUT_SEC)
+                tf2::durationFromSec(tf_timeout_sec)
             )) {
             RCLCPP_ERROR_STREAM(
                 get_logger(),
@@ -337,9 +341,7 @@ void TopographicPlannerNode::execute() {
 
     // Smooths the path if requested.
     if (smooth_steps_ > 0) {
-        smooth::apply(
-            *map_copy, config_.trav_layer, smooth_steps_, path
-        );
+        smooth::apply(*map_copy, config_.trav_layer, smooth_steps_, path);
     }
 
     result->path = to_ros_path(path, map_frame, now());

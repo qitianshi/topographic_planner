@@ -2,6 +2,7 @@
 #include "topographic_planner/pathfinder.hpp"
 #include "topographic_planner/smooth.hpp"
 
+#include <cmath>
 #include <nav2_util/geometry_utils.hpp>
 #include <nav2_util/node_utils.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
@@ -51,22 +52,35 @@ uint16_t to_action_result(pathfinder::Result result) {
     }
 }
 
-/* Converts a `pathfinder` position array to `nav_msgs::msg::Path` */
+/* Converts a `pathfinder::Path` to `nav_msgs::msg::Path` */
 nav_msgs::msg::Path to_ros_path(
-    const pathfinder::Path &positions,
+    const pathfinder::Path &pf_path,
     const std::string &frame_id,
-    const rclcpp::Time &stamp
+    const rclcpp::Time &stamp,
+    const geometry_msgs::msg::Quaternion &goal_orientation
 ) {
     nav_msgs::msg::Path ros_path;
     ros_path.header.frame_id = frame_id;
     ros_path.header.stamp = stamp;
-    for (const auto &p : positions) {
+
+    for (size_t i = 0; i < pf_path.size(); ++i) {
         geometry_msgs::msg::PoseStamped pose;
         pose.header = ros_path.header;
-        pose.pose.position.x = p.x();
-        pose.pose.position.y = p.y();
+        pose.pose.position.x = pf_path[i].x();
+        pose.pose.position.y = pf_path[i].y();
         pose.pose.position.z = 0.0;
-        pose.pose.orientation.w = 1.0;    // TODO: Calculate path tangent
+
+        if (i < pf_path.size() - 1) {
+            double yaw = std::atan2(
+                pf_path[i + 1].y() - pf_path[i].y(),
+                pf_path[i + 1].x() - pf_path[i].x()
+            );
+            pose.pose.orientation =
+                nav2_util::geometry_utils::orientationAroundZAxis(yaw);
+        } else {
+            pose.pose.orientation = goal_orientation;
+        }
+
         ros_path.poses.push_back(pose);
     }
     return ros_path;
@@ -344,7 +358,8 @@ void TopographicPlannerNode::execute() {
         smooth::apply(*map_copy, config_.trav_layer, smooth_steps_, path);
     }
 
-    result->path = to_ros_path(path, map_frame, now());
+    result->path =
+        to_ros_path(path, map_frame, now(), goal_pose.pose.orientation);
     action_server_->succeeded_current(result);
 }
 

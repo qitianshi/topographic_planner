@@ -64,10 +64,19 @@ class Pathfinder::Solver {
         elev_data_ = &map_->get(config_->elev_layer);
         trav_data_ = &map_->get(config_->trav_layer);
 
+        // Checks start and goal are within map bounds
         if (!map_->getIndex(start, start_idx_))
             return Result::StartOutsideMap;
         if (!map_->getIndex(dest, goal_idx_))
             return Result::GoalOutsideMap;
+
+        // Checks start and goal are traversable
+        const float start_trav = (*trav_data_)(start_idx_(0), start_idx_(1));
+        const float goal_trav = (*trav_data_)(goal_idx_(0), goal_idx_(1));
+        if (std::isnan(start_trav) || start_trav >= lethal_trav)
+            return Result::StartOccupied;
+        if (std::isnan(goal_trav) || goal_trav >= lethal_trav)
+            return Result::GoalOccupied;
 
         if (!run_search()) {
             if (was_cancelled_) {
@@ -128,7 +137,7 @@ class Pathfinder::Solver {
             return cost_infinity;
 
         const float trav = (*trav_data_)(to_idx(0), to_idx(1));
-        if (trav >= lethal_trav || std::isnan(trav))
+        if (std::isnan(trav) || trav >= lethal_trav)
             return cost_infinity;
 
         const float adj_dist = adjacent_dist(from_idx, to_idx);

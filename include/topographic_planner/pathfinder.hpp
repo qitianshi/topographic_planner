@@ -41,7 +41,9 @@ enum class Result {
     FoundPath,
     NoPath,
     StartOutsideMap,
+    StartOccupied,
     GoalOutsideMap,
+    GoalOccupied,
     Cancelled
 };
 

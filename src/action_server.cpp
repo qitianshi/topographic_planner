@@ -47,8 +47,12 @@ uint16_t to_action_result(pathfinder::Result result) {
         return nav2_msgs::action::ComputePathToPose::Result::NO_VALID_PATH;
     case pathfinder::Result::StartOutsideMap:
         return nav2_msgs::action::ComputePathToPose::Result::START_OUTSIDE_MAP;
+    case pathfinder::Result::StartOccupied:
+        return nav2_msgs::action::ComputePathToPose::Result::START_OCCUPIED;
     case pathfinder::Result::GoalOutsideMap:
         return nav2_msgs::action::ComputePathToPose::Result::GOAL_OUTSIDE_MAP;
+    case pathfinder::Result::GoalOccupied:
+        return nav2_msgs::action::ComputePathToPose::Result::GOAL_OCCUPIED;
     case pathfinder::Result::Cancelled:
         return nav2_msgs::action::ComputePathToPose::Result::NONE;
     default:

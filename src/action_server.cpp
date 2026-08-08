@@ -38,7 +38,7 @@ constexpr const char *default_trav_layer_name = "traversability";
 
 constexpr double tf_timeout_sec = 1.0;
 
-/* Converts a `pathfinder::Result` to a `ComputePathToPose` action error code */
+/** Converts `pathfinder::Result` to `ComputePathToPose::Result` */
 uint16_t to_action_result(pathfinder::Result result) {
     switch (result) {
     case pathfinder::Result::StartOutsideMap:
@@ -52,7 +52,7 @@ uint16_t to_action_result(pathfinder::Result result) {
     }
 }
 
-/* Converts a `pathfinder::Path` to `nav_msgs::msg::Path` */
+/** Converts a `pathfinder::Path` to `nav_msgs::msg::Path` */
 nav_msgs::msg::Path to_ros_path(
     const pathfinder::Path &pf_path,
     const std::string &frame_id,

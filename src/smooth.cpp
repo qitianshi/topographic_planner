@@ -6,7 +6,7 @@
 
 namespace smooth {
 
-/* Interpolate two points by a factor 'c' */
+/** Interpolate two points by a factor 'c' */
 static grid_map::Position lerp(
     const grid_map::Position &a,
     const grid_map::Position &b,
@@ -19,7 +19,7 @@ static grid_map::Position lerp(
     return a * c + b * (1.0f - c);
 }
 
-/* Calculate the cost at a particular point in the map */
+/** Calculate the cost at a particular point in the map */
 static float getCost(
     const grid_map::GridMap &map,
     const std::string &layer,
@@ -31,7 +31,7 @@ static float getCost(
     return map.atPosition(layer, point);
 }
 
-/* A single smooth step over a path, respecting the cost map */
+/** A single smooth step over a path, respecting the cost map */
 void step(
     const grid_map::GridMap &map,
     const std::string &layer,
@@ -55,7 +55,7 @@ void step(
     }
 }
 
-/* Smooth an entire path using multiple steps */
+/** Smooth an entire path using multiple steps */
 void apply(
     const grid_map::GridMap &map,
     const std::string &trav_layer,

@@ -7,6 +7,7 @@
 #include <cmath>
 #include <iostream>
 #include <queue>
+#include <stdexcept>
 #include <vector>
 
 namespace pathfinder {
@@ -44,11 +45,11 @@ class Pathfinder::Solver {
         if (parents_.size() != static_cast<size_t>(total_nodes)) {
             parents_.assign(total_nodes, parents_null_val_);
             closed_list_.assign(total_nodes, false);
-            g_scores_.assign(total_nodes, pf_cost_infinity);
+            g_scores_.assign(total_nodes, cost_infinity);
         } else {
             std::fill(parents_.begin(), parents_.end(), parents_null_val_);
             std::fill(closed_list_.begin(), closed_list_.end(), false);
-            std::fill(g_scores_.begin(), g_scores_.end(), pf_cost_infinity);
+            std::fill(g_scores_.begin(), g_scores_.end(), cost_infinity);
         }
 
         std::priority_queue<Node> empty;
@@ -75,8 +76,7 @@ class Pathfinder::Solver {
             return Result::NoPath;
         }
 
-        if (!reconstruct_path(path))
-            return Result::ErrMem;
+        reconstruct_path(path);
 
         return Result::FoundPath;
     }
@@ -92,7 +92,7 @@ class Pathfinder::Solver {
         return grid_map::Index(idx_1d / map_size_(1), idx_1d % map_size_(1));
     }
 
-    bool is_traversable(float cost) const { return cost != pf_cost_infinity; }
+    bool is_traversable(float cost) const { return cost != cost_infinity; }
 
     /** Calculates the 2D Euclidean distance between adjacent nodes */
     float adjacent_dist(
@@ -113,7 +113,7 @@ class Pathfinder::Solver {
         float curr_elev = (*elev_data_)(from_idx(0), from_idx(1));
         float next_elev = (*elev_data_)(to_idx(0), to_idx(1));
         if (std::isnan(curr_elev) || std::isnan(next_elev))
-            return pf_cost_infinity;
+            return cost_infinity;
 
         return (next_elev - curr_elev) / xy_dist;
     }
@@ -125,17 +125,17 @@ class Pathfinder::Solver {
     ) const {
         // Checks is within map bounds
         if (!map_->isValid(to_idx, config_->trav_layer))
-            return pf_cost_infinity;
+            return cost_infinity;
 
         const float trav = (*trav_data_)(to_idx(0), to_idx(1));
         if (trav >= lethal_trav || std::isnan(trav))
-            return pf_cost_infinity;
+            return cost_infinity;
 
         const float adj_dist = adjacent_dist(from_idx, to_idx);
         const float abs_grad =
             std::abs(adjacent_grad(from_idx, to_idx, adj_dist));
         if (abs_grad >= config_->weights.max_grad)
-            return pf_cost_infinity;
+            return cost_infinity;
 
         return config_->weights.grad * abs_grad +
                config_->weights.xy_dist * adj_dist +
@@ -258,14 +258,17 @@ class Pathfinder::Solver {
     }
 
     /** Reconstructs the final path */
-    bool reconstruct_path(Path &path) {
+    void reconstruct_path(Path &path) {
         path.clear();
         int curr_1d = to_1d(goal_idx_);
         int start_1d = to_1d(start_idx_);
 
         while (curr_1d != start_1d) {
-            if (curr_1d == parents_null_val_)
-                return false;    // Error finding parent
+            if (curr_1d == parents_null_val_) {
+                throw std::logic_error(
+                    "Path reconstruction failed: unexpected null parent"
+                );
+            }
 
             grid_map::Position point;
             map_->getPosition(to_2d(curr_1d), point);
@@ -279,7 +282,6 @@ class Pathfinder::Solver {
         path.push_back(start_point);
 
         std::reverse(path.begin(), path.end());
-        return true;
     }
 
     const grid_map::GridMap *map_{nullptr};
@@ -300,7 +302,7 @@ class Pathfinder::Solver {
     // Constants
     constexpr static float lethal_trav = 253.0f;
     constexpr static int parents_null_val_ = -1;
-    constexpr static float pf_cost_infinity = INFINITY;
+    constexpr static float cost_infinity = INFINITY;
 
     // Search state
     std::priority_queue<Node> open_list_;
@@ -329,8 +331,6 @@ std::string_view result_description(Result res) {
         return "found a path from start to destination";
     case Result::NoPath:
         return "could not find a path from start to destination";
-    case Result::ErrMem:
-        return "failed to find a path due to an internal error";
     case Result::StartOutsideMap:
         return "start point is outside the map";
     case Result::GoalOutsideMap:

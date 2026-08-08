@@ -32,11 +32,14 @@ struct Config {
 
 using Path = std::vector<grid_map::Position>;
 
-/** Represents the outcome of a pathfinding request. */
+/**
+ * @brief Represents the outcome of a pathfinding request.
+ *
+ * Subset of `nav2_msgs::action::ComputePathToPose`.
+ */
 enum class Result {
     FoundPath,
     NoPath,
-    ErrMem,
     StartOutsideMap,
     GoalOutsideMap,
     Cancelled

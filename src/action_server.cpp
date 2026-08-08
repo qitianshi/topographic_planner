@@ -41,14 +41,18 @@ constexpr double tf_timeout_sec = 1.0;
 /** Converts `pathfinder::Result` to `ComputePathToPose::Result` */
 uint16_t to_action_result(pathfinder::Result result) {
     switch (result) {
+    case pathfinder::Result::FoundPath:
+        return nav2_msgs::action::ComputePathToPose::Result::NONE;
+    case pathfinder::Result::NoPath:
+        return nav2_msgs::action::ComputePathToPose::Result::NO_VALID_PATH;
     case pathfinder::Result::StartOutsideMap:
         return nav2_msgs::action::ComputePathToPose::Result::START_OUTSIDE_MAP;
     case pathfinder::Result::GoalOutsideMap:
         return nav2_msgs::action::ComputePathToPose::Result::GOAL_OUTSIDE_MAP;
-    case pathfinder::Result::FoundPath:
+    case pathfinder::Result::Cancelled:
         return nav2_msgs::action::ComputePathToPose::Result::NONE;
     default:
-        return nav2_msgs::action::ComputePathToPose::Result::NO_VALID_PATH;
+        return nav2_msgs::action::ComputePathToPose::Result::UNKNOWN;
     }
 }
 

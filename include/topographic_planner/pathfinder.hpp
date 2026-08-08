@@ -45,8 +45,7 @@ enum class Result {
     Cancelled
 };
 
-/** Converts a search result enum to a human-readable string */
-std::string_view result_description(Result res);
+
 
 /** 2.5D A* path planner for grid_maps */
 class Pathfinder {

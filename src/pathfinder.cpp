@@ -325,21 +325,4 @@ Result Pathfinder::search(
     return solver_->solve(map, config, start, dest, path);
 }
 
-std::string_view result_description(Result res) {
-    switch (res) {
-    case Result::FoundPath:
-        return "found a path from start to destination";
-    case Result::NoPath:
-        return "could not find a path from start to destination";
-    case Result::StartOutsideMap:
-        return "start point is outside the map";
-    case Result::GoalOutsideMap:
-        return "goal point is outside the map";
-    case Result::Cancelled:
-        return "search was cancelled";
-    default:
-        return "unknown error";
-    }
-}
-
 }    // namespace pathfinder

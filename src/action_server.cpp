@@ -348,10 +348,6 @@ void TopographicPlannerNode::execute() {
     }
 
     if (pf_result != pathfinder::Result::FoundPath) {
-        RCLCPP_ERROR_STREAM(
-            get_logger(),
-            "Pathfinder failed: " << pathfinder::result_description(pf_result)
-        );
         result->error_code = to_action_result(pf_result);
         action_server_->terminate_current(result);
         return;

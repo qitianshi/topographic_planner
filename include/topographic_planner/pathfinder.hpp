@@ -10,13 +10,13 @@
 
 namespace pathfinder {
 
-/** Cost function weights and thresholds used by the A* search */
+/** Weights and thresholds used by the A* edge cost function */
 struct Weights {
-    float xy_dist;
-    float grad;
-    float cost;
-    float heuristic;
-    float max_grad;
+    float xy_dist;      ///< Weight of horizontal 2D distance
+    float grad;         ///< Weight of terrain slope gradient
+    float trav;         ///< Weight of the traversability layer value
+    float heuristic;    ///< Weight of the octile distance heuristic
+    float max_grad;     ///< Maximum allowed slope gradient threshold
 };
 
 /** Configuration parameters for Pathfinder */
@@ -46,8 +46,6 @@ enum class Result {
     GoalOccupied,
     Cancelled
 };
-
-
 
 /** 2.5D A* path planner for grid_maps */
 class Pathfinder {

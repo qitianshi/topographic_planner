@@ -4,7 +4,7 @@ topographic_planner_node:
     smooth_steps: 10
     weight_grad: 1.26
     weight_xy_dist: 1.34
-    weight_cost: 0.00706
+    weight_trav: 0.00706
     weight_heuristic: 3.5
     max_gradient: 0.577
     elevation_layer_name: "elevation"

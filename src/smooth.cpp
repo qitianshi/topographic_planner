@@ -19,19 +19,19 @@ static grid_map::Position lerp(
     return a * c + b * (1.0f - c);
 }
 
-/** Calculate the cost at a particular point in the map */
-static float getCost(
+/** Get the traversability value at a particular point in the map */
+static float get_trav(
     const grid_map::GridMap &map,
     const std::string &layer,
     const grid_map::Position &point
 ) {
-    if (!map.isInside(point)) {
-        return 255.0f;    // High cost outside
-    }
+    if (!map.isInside(point))
+        return 255.0f;    // High traversability value (blocked) outside
+
     return map.atPosition(layer, point);
 }
 
-/** A single smooth step over a path, respecting the cost map */
+/** A single smooth step over a path, respecting the traversability map */
 void step(
     const grid_map::GridMap &map,
     const std::string &layer,
@@ -48,7 +48,7 @@ void step(
         const grid_map::Position base = lerp(prev, next, 0.5f);
         float factor =
             0.5f -
-            (getCost(map, layer, curr) - getCost(map, layer, base)) / 10.0f;
+            (get_trav(map, layer, curr) - get_trav(map, layer, base)) / 10.0f;
 
         path[i] = lerp(curr, base, factor);
         prev = curr;    // Use original point for next iteration's base
